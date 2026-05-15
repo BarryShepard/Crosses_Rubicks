@@ -54,4 +54,14 @@ describe("getActiveFaceWinner", () => {
 
     expect(isFullBoardDraw(board)).toBe(true);
   });
+
+  it("does not detect a full-board draw when any cell is empty", () => {
+    const board = createEmptyBoard();
+    for (const key of Object.keys(board)) {
+      board[key as CellKey] = "X";
+    }
+    board[cellKey({ face: "front", row: 0, col: 0 })] = null;
+
+    expect(isFullBoardDraw(board)).toBe(false);
+  });
 });
