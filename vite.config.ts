@@ -1,7 +1,4 @@
-/// <reference types="vitest" />
-
-import type { UserConfig } from "vite";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
@@ -10,4 +7,4 @@ export default defineConfig({
     environment: "node",
     setupFiles: "./src/setupTests.ts",
   },
-} as UserConfig);
+});
