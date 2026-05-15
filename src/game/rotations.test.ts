@@ -135,4 +135,34 @@ describe("applyLayerRotation", () => {
     expect(rotated[source]).toBeNull();
     expect(rotated[target]).toBe("X");
   });
+
+  it("applies explicit representative mappings across axes and layers", () => {
+    const fixtures = [
+      {
+        rotation: { axis: "z", layerIndex: 2, direction: 1 },
+        source: cellKey({ face: "front", row: 0, col: 1 }),
+        target: cellKey({ face: "front", row: 1, col: 0 }),
+      },
+      {
+        rotation: { axis: "x", layerIndex: 0, direction: -1 },
+        source: cellKey({ face: "bottom", row: 1, col: 0 }),
+        target: cellKey({ face: "front", row: 1, col: 0 }),
+      },
+      {
+        rotation: { axis: "y", layerIndex: 1, direction: -1 },
+        source: cellKey({ face: "front", row: 1, col: 2 }),
+        target: cellKey({ face: "left", row: 1, col: 2 }),
+      },
+    ] as const;
+
+    for (const { rotation, source, target } of fixtures) {
+      const board = createEmptyBoard();
+      board[source] = "X";
+
+      const rotated = applyLayerRotation(board, rotation);
+
+      expect(rotated[source]).toBeNull();
+      expect(rotated[target]).toBe("X");
+    }
+  });
 });

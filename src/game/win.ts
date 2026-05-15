@@ -1,4 +1,13 @@
-import { ACTIVE_FACE, cellKey, cols, rows, type Board, type CellKey, type Player } from "./types";
+import {
+  ACTIVE_FACE,
+  allCells,
+  cellKey,
+  cols,
+  rows,
+  type Board,
+  type CellKey,
+  type Player,
+} from "./types";
 
 export type WinResult = {
   winner: Player;
@@ -34,5 +43,10 @@ export function getActiveFaceWinner(board: Board): WinResult | null {
 }
 
 export function isFullBoardDraw(board: Board): boolean {
-  return Object.values(board).every(Boolean) && getActiveFaceWinner(board) === null;
+  return (
+    allCells().every((cell) => {
+      const owner = board[cellKey(cell)];
+      return owner !== null && owner !== undefined;
+    }) && getActiveFaceWinner(board) === null
+  );
 }
