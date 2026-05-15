@@ -17,6 +17,16 @@ describe("game state", () => {
     expect(Object.values(state.board).every((owner) => owner === null)).toBe(true);
   });
 
+  it("clones an incoming board when creating game state", () => {
+    const board = createEmptyBoard();
+    const state = createGameState(board);
+
+    board[cellKey({ face: "front", row: 0, col: 0 })] = "X";
+
+    expect(state.board[cellKey({ face: "front", row: 0, col: 0 })]).toBeNull();
+    expect(state.board).not.toBe(board);
+  });
+
   it("places a mark on a free active-face cell and switches player", () => {
     const state = createGameState();
     const next = placeMark(state, { face: "front", row: 0, col: 0 });
@@ -39,12 +49,29 @@ describe("game state", () => {
     expect(next).toBe(state);
   });
 
+  it("places a mark without mutating the original board", () => {
+    const state = createGameState();
+    const next = placeMark(state, { face: "front", row: 0, col: 0 });
+
+    expect(next.board).not.toBe(state.board);
+    expect(state.board[cellKey({ face: "front", row: 0, col: 0 })]).toBeNull();
+  });
+
   it("allows one optional rotation before placement", () => {
     const state = createGameState();
     const rotated = applyTurnRotation(state, { axis: "x", layerIndex: 1, direction: 1 });
 
     expect(rotated.rotationUsed).toBe(true);
-    expect(rotated.pendingUndoBoard).toBe(state.board);
+    expect(rotated.pendingUndoBoard).toEqual(state.board);
+    expect(rotated.pendingUndoBoard).not.toBe(state.board);
+  });
+
+  it("rotates without mutating the original board", () => {
+    const state = placeMark(createGameState(), { face: "front", row: 0, col: 0 });
+    const rotated = applyTurnRotation(state, { axis: "z", layerIndex: 2, direction: 1 });
+
+    expect(rotated.board).not.toBe(state.board);
+    expect(state.board[cellKey({ face: "front", row: 0, col: 0 })]).toBe("X");
   });
 
   it("blocks a second rotation in the same turn", () => {
@@ -61,6 +88,8 @@ describe("game state", () => {
     const undone = undoTurnRotation(rotated);
 
     expect(undone.board).toEqual(state.board);
+    expect(undone.board).not.toBe(state.board);
+    expect(undone.board).not.toBe(rotated.pendingUndoBoard);
     expect(undone.rotationUsed).toBe(false);
     expect(undone.pendingUndoBoard).toBeNull();
   });
@@ -87,6 +116,45 @@ describe("game state", () => {
     expect(state.winningLine).toHaveLength(3);
   });
 
+  it("ignores placement after the game is won", () => {
+    let state = createGameState();
+    state = placeMark(state, { face: "front", row: 0, col: 0 });
+    state = placeMark(state, { face: "front", row: 1, col: 0 });
+    state = placeMark(state, { face: "front", row: 0, col: 1 });
+    state = placeMark(state, { face: "front", row: 1, col: 1 });
+    state = placeMark(state, { face: "front", row: 0, col: 2 });
+
+    const next = placeMark(state, { face: "front", row: 2, col: 2 });
+
+    expect(next).toBe(state);
+  });
+
+  it("ignores rotation after the game is won", () => {
+    let state = createGameState();
+    state = placeMark(state, { face: "front", row: 0, col: 0 });
+    state = placeMark(state, { face: "front", row: 1, col: 0 });
+    state = placeMark(state, { face: "front", row: 0, col: 1 });
+    state = placeMark(state, { face: "front", row: 1, col: 1 });
+    state = placeMark(state, { face: "front", row: 0, col: 2 });
+
+    const next = applyTurnRotation(state, { axis: "x", layerIndex: 1, direction: 1 });
+
+    expect(next).toBe(state);
+  });
+
+  it("ignores undo after the game is won", () => {
+    let state = createGameState();
+    state = placeMark(state, { face: "front", row: 0, col: 0 });
+    state = placeMark(state, { face: "front", row: 1, col: 0 });
+    state = placeMark(state, { face: "front", row: 0, col: 1 });
+    state = placeMark(state, { face: "front", row: 1, col: 1 });
+    state = placeMark(state, { face: "front", row: 0, col: 2 });
+
+    const next = undoTurnRotation(state);
+
+    expect(next).toBe(state);
+  });
+
   it("detects a full-board draw with no active-face winner", () => {
     const board = createEmptyBoard();
     for (const key of Object.keys(board) as CellKey[]) {
@@ -107,6 +175,22 @@ describe("game state", () => {
     expect(state.status).toBe("draw");
   });
 
+  it("ignores rotation after the game is drawn", () => {
+    const board = createDrawBoard();
+    const state = createGameState(board);
+    const next = applyTurnRotation(state, { axis: "x", layerIndex: 1, direction: 1 });
+
+    expect(next).toBe(state);
+  });
+
+  it("ignores undo after the game is drawn", () => {
+    const board = createDrawBoard();
+    const state = createGameState(board);
+    const next = undoTurnRotation(state);
+
+    expect(next).toBe(state);
+  });
+
   it("starts a new empty game", () => {
     const state = placeMark(createGameState(), { face: "front", row: 0, col: 0 });
     const fresh = startNewGame(state);
@@ -115,3 +199,21 @@ describe("game state", () => {
     expect(Object.values(fresh.board).every((owner) => owner === null)).toBe(true);
   });
 });
+
+function createDrawBoard() {
+  const board = createEmptyBoard();
+  for (const key of Object.keys(board) as CellKey[]) {
+    board[key] = "X";
+  }
+  board[cellKey({ face: "front", row: 0, col: 0 })] = "X";
+  board[cellKey({ face: "front", row: 0, col: 1 })] = "O";
+  board[cellKey({ face: "front", row: 0, col: 2 })] = "X";
+  board[cellKey({ face: "front", row: 1, col: 0 })] = "O";
+  board[cellKey({ face: "front", row: 1, col: 1 })] = "X";
+  board[cellKey({ face: "front", row: 1, col: 2 })] = "O";
+  board[cellKey({ face: "front", row: 2, col: 0 })] = "O";
+  board[cellKey({ face: "front", row: 2, col: 1 })] = "X";
+  board[cellKey({ face: "front", row: 2, col: 2 })] = "O";
+
+  return board;
+}

@@ -61,7 +61,7 @@ function finalizeState(state: GameState): GameState {
 
 export function createGameState(board = createEmptyBoard()): GameState {
   return finalizeState({
-    board,
+    board: cloneBoard(board),
     activeFace: ACTIVE_FACE,
     currentPlayer: "X",
     status: "playing",
@@ -114,7 +114,7 @@ export function applyTurnRotation(state: GameState, rotation: LayerRotation): Ga
     ...state,
     board: applyLayerRotation(state.board, rotation),
     rotationUsed: true,
-    pendingUndoBoard: state.board,
+    pendingUndoBoard: cloneBoard(state.board),
   };
 }
 
@@ -125,7 +125,7 @@ export function undoTurnRotation(state: GameState): GameState {
 
   return {
     ...state,
-    board: state.pendingUndoBoard,
+    board: cloneBoard(state.pendingUndoBoard),
     rotationUsed: false,
     pendingUndoBoard: null,
   };
