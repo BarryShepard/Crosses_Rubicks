@@ -55,6 +55,7 @@ describe("rotation preview helpers", () => {
 
   it("maps preview progress and direction to quarter-turn radians", () => {
     expect(previewAngleForProgress({ axis: "x", layerIndex: 1, direction: 1 }, 0)).toBe(0);
+    expect(previewAngleForProgress({ axis: "x", layerIndex: 1, direction: 1 }, -1)).toBe(0);
     expect(previewAngleForProgress({ axis: "x", layerIndex: 1, direction: 1 }, 0.5)).toBeCloseTo(
       Math.PI / 4,
     );
