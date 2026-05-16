@@ -41,4 +41,17 @@ describe("CubeScene", () => {
     expect(html).toContain("rotation-armed");
     expect(html).toContain("disabled");
   });
+
+  it("exposes idle animation state for testable interaction transitions", () => {
+    const html = renderToStaticMarkup(
+      <CubeScene
+        game={createGameState()}
+        rotateModeArmed={false}
+        onPlaceMark={vi.fn()}
+        onLayerRotation={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('data-animation-state="idle"');
+  });
 });

@@ -77,6 +77,14 @@
   opacity: 0.72;
 }
 
+.rotation-animating .cube-interaction-layer {
+  cursor: wait;
+}
+
+.rotation-animating .active-face-cell {
+  pointer-events: none;
+}
+
 @media (max-width: 720px) {
   .cube-scene {
     min-height: 430px;

@@ -1,9 +1,20 @@
 import { Text } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { canPlaceMark, type GameState } from "../game/board";
 import { cellToSticker } from "../game/geometry";
-import { resolveRotationGesture, type Point } from "../game/gesture";
+import {
+  resolveRotationGesture,
+  resolveRotationGesturePreview,
+  type Point,
+  type RotationGesturePreview,
+} from "../game/gesture";
+import {
+  cellsInRotationLayer,
+  previewAngleForProgress,
+  quarterTurnRadians,
+  rotationToEuler,
+} from "../game/rotationPreview";
 import {
   allCells,
   cellKey,
@@ -27,6 +38,16 @@ type DragState = {
   start: Point;
   latest: Point;
   moved: boolean;
+};
+
+type RotationAnimationPhase = "dragging" | "committing" | "cancelling" | "undoing";
+
+type RotationPreviewState = {
+  rotation: LayerRotation;
+  angle: number;
+  progress: number;
+  commitReady: boolean;
+  phase: RotationAnimationPhase;
 };
 
 function faceRotation(face: Face): [number, number, number] {
@@ -60,19 +81,27 @@ function Sticker({
   cell,
   owner,
   highlighted,
+  previewed = false,
 }: {
   cell: CellId;
   owner: "X" | "O" | null;
   highlighted: boolean;
+  previewed?: boolean;
 }) {
   const fill = cell.face === "front" ? "#ffffff" : "#e8edf6";
-  const color = highlighted ? "#ffe36e" : fill;
+  const color = highlighted ? "#ffe36e" : previewed ? "#d9e8ff" : fill;
 
   return (
     <group position={stickerPosition(cell)} rotation={faceRotation(cell.face)}>
       <mesh>
         <planeGeometry args={[0.58, 0.58]} />
-        <meshStandardMaterial color={color} roughness={0.82} metalness={0.02} />
+        <meshStandardMaterial
+          color={color}
+          emissive={previewed ? "#2f5cff" : "#000000"}
+          emissiveIntensity={previewed ? 0.08 : 0}
+          roughness={0.82}
+          metalness={0.02}
+        />
       </mesh>
       {owner ? (
         <Text
@@ -89,8 +118,15 @@ function Sticker({
   );
 }
 
-function CubeModel({ game }: { game: GameState }) {
+function CubeModel({ game, preview }: { game: GameState; preview: RotationPreviewState | null }) {
   const highlighted = useMemo(() => new Set<CellKey>(game.winningLine), [game.winningLine]);
+  const cells = useMemo(() => allCells(), []);
+  const previewKeys = useMemo(
+    () => new Set<CellKey>(preview ? cellsInRotationLayer(preview.rotation).map(cellKey) : []),
+    [preview],
+  );
+  const staticCells = preview ? cells.filter((cell) => !previewKeys.has(cellKey(cell))) : cells;
+  const previewCells = preview ? cells.filter((cell) => previewKeys.has(cellKey(cell))) : [];
 
   return (
     <group>
@@ -98,13 +134,30 @@ function CubeModel({ game }: { game: GameState }) {
         <boxGeometry args={[2.05, 2.05, 2.05]} />
         <meshStandardMaterial color="#d5dde9" roughness={0.9} metalness={0.02} />
       </mesh>
-      {allCells().map((cell) => {
+      {staticCells.map((cell) => {
         const key = cellKey(cell);
 
         return (
           <Sticker key={key} cell={cell} owner={game.board[key]} highlighted={highlighted.has(key)} />
         );
       })}
+      {preview ? (
+        <group rotation={rotationToEuler(preview.rotation, preview.angle)}>
+          {previewCells.map((cell) => {
+            const key = cellKey(cell);
+
+            return (
+              <Sticker
+                key={key}
+                cell={cell}
+                owner={game.board[key]}
+                highlighted={highlighted.has(key)}
+                previewed
+              />
+            );
+          })}
+        </group>
+      ) : null}
       <mesh position={[0, 0, 1.075]}>
         <planeGeometry args={[2.28, 2.28]} />
         <meshBasicMaterial color="#2f5cff" wireframe transparent opacity={0.45} />
@@ -115,8 +168,97 @@ function CubeModel({ game }: { game: GameState }) {
 
 export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation }: CubeSceneProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const rotationPreviewRef = useRef<RotationPreviewState | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [viewRotation, setViewRotation] = useState<[number, number]>([0, 0]);
+  const [rotationPreview, setRotationPreviewState] = useState<RotationPreviewState | null>(null);
+  const interactionLocked =
+    rotationPreview?.phase === "committing" ||
+    rotationPreview?.phase === "cancelling" ||
+    rotationPreview?.phase === "undoing";
+
+  const updateRotationPreview = useCallback(
+    (
+      next:
+        | RotationPreviewState
+        | null
+        | ((current: RotationPreviewState | null) => RotationPreviewState | null),
+    ) => {
+      const resolved = typeof next === "function" ? next(rotationPreviewRef.current) : next;
+
+      rotationPreviewRef.current = resolved;
+      setRotationPreviewState(resolved);
+    },
+    [],
+  );
+
+  const stopRotationAnimation = useCallback(() => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
+
+  const animatePreviewTo = useCallback(
+    (
+      phase: RotationAnimationPhase,
+      startAngle: number,
+      targetAngle: number,
+      onComplete: () => void,
+    ) => {
+      const preview = rotationPreviewRef.current;
+
+      if (!preview) {
+        onComplete();
+        return;
+      }
+
+      stopRotationAnimation();
+      updateRotationPreview({ ...preview, phase });
+
+      const duration = 180;
+      const startTime = performance.now();
+      const easeOut = (progress: number) => 1 - (1 - progress) ** 3;
+
+      const step = (time: number) => {
+        const elapsed = Math.min(1, (time - startTime) / duration);
+        const angle = startAngle + (targetAngle - startAngle) * easeOut(elapsed);
+
+        updateRotationPreview((current) => (current ? { ...current, angle, phase } : null));
+
+        if (elapsed < 1) {
+          animationFrameRef.current = requestAnimationFrame(step);
+          return;
+        }
+
+        animationFrameRef.current = null;
+        updateRotationPreview(null);
+        onComplete();
+      };
+
+      animationFrameRef.current = requestAnimationFrame(step);
+    },
+    [stopRotationAnimation, updateRotationPreview],
+  );
+
+  function shouldReplacePreview(
+    current: RotationPreviewState | null,
+    next: RotationGesturePreview,
+  ) {
+    if (!current || current.phase !== "dragging") {
+      return true;
+    }
+
+    if (
+      current.rotation.axis === next.rotation.axis &&
+      current.rotation.layerIndex === next.rotation.layerIndex
+    ) {
+      return true;
+    }
+
+    return Math.abs(current.angle) < quarterTurnRadians * 0.2;
+  }
 
   useEffect(() => {
     if (drag) {
@@ -137,11 +279,27 @@ export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation 
     return () => cancelAnimationFrame(frame);
   }, [drag, viewRotation]);
 
+  useEffect(() => () => stopRotationAnimation(), [stopRotationAnimation]);
+
   function pointFromEvent(event: PointerEvent): Point {
     return { x: event.clientX, y: event.clientY };
   }
 
+  function boundsFromOverlay() {
+    const rect = overlayRef.current?.getBoundingClientRect();
+
+    if (!rect) {
+      return null;
+    }
+
+    return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+  }
+
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (interactionLocked) {
+      return;
+    }
+
     if (event.target instanceof HTMLElement && event.target.closest(".active-face-cell")) {
       return;
     }
@@ -162,9 +320,35 @@ export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation 
     const moved = drag.moved || Math.hypot(dx, dy) > 10;
     setDrag({ start: drag.start, latest, moved });
 
-    if (!rotateModeArmed) {
-      setViewRotation([dy / 180, dx / 180]);
+    if (rotateModeArmed) {
+      const bounds = boundsFromOverlay();
+      const preview = bounds ? resolveRotationGesturePreview(bounds, drag.start, latest) : null;
+
+      if (preview) {
+        updateRotationPreview((current) => {
+          if (!shouldReplacePreview(current, preview) && current) {
+            return {
+              ...current,
+              angle: previewAngleForProgress(current.rotation, preview.progress),
+              progress: preview.progress,
+              commitReady: preview.commitReady,
+            };
+          }
+
+          return {
+            rotation: preview.rotation,
+            angle: previewAngleForProgress(preview.rotation, preview.progress),
+            progress: preview.progress,
+            commitReady: preview.commitReady,
+            phase: "dragging",
+          };
+        });
+      }
+
+      return;
     }
+
+    setViewRotation([dy / 180, dx / 180]);
   }
 
   function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
@@ -173,22 +357,36 @@ export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation 
     }
 
     const latest = pointFromEvent(event);
-    const rect = overlayRef.current?.getBoundingClientRect();
+    const bounds = boundsFromOverlay();
     setDrag(null);
 
-    if (rotateModeArmed && rect) {
-      onLayerRotation(
-        resolveRotationGesture(
-          { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
-          drag.start,
-          latest,
-        ),
-      );
+    if (!rotateModeArmed) {
+      return;
     }
+
+    const preview = rotationPreviewRef.current;
+    const rotation = bounds ? resolveRotationGesture(bounds, drag.start, latest) : null;
+
+    if (rotation && preview?.commitReady) {
+      animatePreviewTo(
+        "committing",
+        preview.angle,
+        previewAngleForProgress(preview.rotation, 1),
+        () => onLayerRotation(preview.rotation),
+      );
+      return;
+    }
+
+    if (preview) {
+      animatePreviewTo("cancelling", preview.angle, 0, () => onLayerRotation(null));
+      return;
+    }
+
+    onLayerRotation(null);
   }
 
   function handleCellClick(cell: CellId) {
-    if (drag?.moved || rotateModeArmed || !canPlaceMark(game, cell)) {
+    if (interactionLocked || drag?.moved || rotateModeArmed || !canPlaceMark(game, cell)) {
       return;
     }
 
@@ -196,12 +394,17 @@ export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation 
   }
 
   return (
-    <div className={`cube-scene ${rotateModeArmed ? "rotation-armed" : ""}`}>
+    <div
+      className={`cube-scene ${rotateModeArmed ? "rotation-armed" : ""} ${
+        interactionLocked ? "rotation-animating" : ""
+      }`}
+      data-animation-state={rotationPreview?.phase ?? "idle"}
+    >
       <Canvas camera={{ position: [0, 0, 5.8], fov: 40 }} gl={{ preserveDrawingBuffer: true }} data-testid="cube-canvas">
         <ambientLight intensity={1.1} />
         <directionalLight position={[3, 4, 5]} intensity={1.4} />
         <group rotation={[viewRotation[0], viewRotation[1], 0]}>
-          <CubeModel game={game} />
+          <CubeModel game={game} preview={rotationPreview} />
         </group>
       </Canvas>
 
@@ -211,7 +414,15 @@ export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation 
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerCancel={() => setDrag(null)}
+        onPointerCancel={() => {
+          setDrag(null);
+
+          const preview = rotationPreviewRef.current;
+
+          if (preview) {
+            animatePreviewTo("cancelling", preview.angle, 0, () => onLayerRotation(null));
+          }
+        }}
       >
         <div className="z-gesture-rings" aria-hidden="true">
           <span />
@@ -230,7 +441,7 @@ export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation 
                   type="button"
                   className="active-face-cell"
                   aria-label={`Place on row ${row + 1}, column ${col + 1}`}
-                  disabled={!canPlaceMark(game, cell) || rotateModeArmed}
+                  disabled={!canPlaceMark(game, cell) || rotateModeArmed || interactionLocked}
                   onClick={() => handleCellClick(cell)}
                 />
               );
