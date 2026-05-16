@@ -11,6 +11,7 @@ import {
 } from "../game/gesture";
 import {
   cellsInRotationLayer,
+  inverseLayerRotation,
   previewAngleForProgress,
   quarterTurnRadians,
   rotationToEuler,
@@ -30,8 +31,11 @@ import "./CubeScene.css";
 type CubeSceneProps = {
   game: GameState;
   rotateModeArmed: boolean;
+  pendingRotation: LayerRotation | null;
+  undoRequestId: number;
   onPlaceMark: (cell: CellId) => void;
   onLayerRotation: (rotation: LayerRotation | null) => void;
+  onUndoRotationComplete: () => void;
 };
 
 type DragState = {
@@ -166,10 +170,19 @@ function CubeModel({ game, preview }: { game: GameState; preview: RotationPrevie
   );
 }
 
-export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation }: CubeSceneProps) {
+export function CubeScene({
+  game,
+  rotateModeArmed,
+  pendingRotation,
+  undoRequestId,
+  onPlaceMark,
+  onLayerRotation,
+  onUndoRotationComplete,
+}: CubeSceneProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const rotationPreviewRef = useRef<RotationPreviewState | null>(null);
+  const handledUndoRequestRef = useRef(undoRequestId);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [viewRotation, setViewRotation] = useState<[number, number]>([0, 0]);
   const [rotationPreview, setRotationPreviewState] = useState<RotationPreviewState | null>(null);
@@ -288,6 +301,38 @@ export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation 
   }, [drag, viewRotation]);
 
   useEffect(() => () => stopRotationAnimation(), [stopRotationAnimation]);
+
+  useEffect(() => {
+    if (undoRequestId === handledUndoRequestRef.current) {
+      return;
+    }
+
+    handledUndoRequestRef.current = undoRequestId;
+
+    if (!pendingRotation) {
+      onUndoRotationComplete();
+      return;
+    }
+
+    const inverse = inverseLayerRotation(pendingRotation);
+    const undoPreview: RotationPreviewState = {
+      rotation: inverse,
+      angle: 0,
+      progress: 0,
+      commitReady: true,
+      phase: "undoing",
+    };
+
+    setDrag(null);
+    updateRotationPreview(undoPreview);
+    animatePreviewTo("undoing", 0, previewAngleForProgress(inverse, 1), onUndoRotationComplete);
+  }, [
+    animatePreviewTo,
+    onUndoRotationComplete,
+    pendingRotation,
+    undoRequestId,
+    updateRotationPreview,
+  ]);
 
   function pointFromEvent(event: PointerEvent): Point {
     return { x: event.clientX, y: event.clientY };

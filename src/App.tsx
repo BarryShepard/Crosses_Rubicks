@@ -13,6 +13,7 @@ import type { CellId, LayerRotation } from "./game/types";
 export default function App() {
   const [game, setGame] = useState(() => createGameState());
   const [rotateModeArmed, setRotateModeArmed] = useState(false);
+  const [undoRequestId, setUndoRequestId] = useState(0);
 
   function handlePlaceMark(cell: CellId) {
     setGame((current) => placeMark(current, cell));
@@ -33,6 +34,20 @@ export default function App() {
     setRotateModeArmed(false);
   }
 
+  function handleUndoRotation() {
+    if (!game.pendingRotation) {
+      setGame((current) => undoTurnRotation(current));
+      return;
+    }
+
+    setRotateModeArmed(false);
+    setUndoRequestId((current) => current + 1);
+  }
+
+  function handleUndoRotationComplete() {
+    setGame((current) => undoTurnRotation(current));
+  }
+
   return (
     <main className="app">
       <div className="game-shell">
@@ -40,7 +55,7 @@ export default function App() {
           game={game}
           rotateModeArmed={rotateModeArmed}
           onArmRotateMode={() => setRotateModeArmed(true)}
-          onUndoRotation={() => setGame((current) => undoTurnRotation(current))}
+          onUndoRotation={handleUndoRotation}
           onNewGame={handleNewGame}
         />
 
@@ -48,8 +63,11 @@ export default function App() {
           <CubeScene
             game={game}
             rotateModeArmed={rotateModeArmed}
+            pendingRotation={game.pendingRotation}
+            undoRequestId={undoRequestId}
             onPlaceMark={handlePlaceMark}
             onLayerRotation={handleLayerRotation}
+            onUndoRotationComplete={handleUndoRotationComplete}
           />
         </section>
       </div>

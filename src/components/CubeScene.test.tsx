@@ -276,8 +276,11 @@ describe("CubeScene", () => {
       <CubeScene
         game={createGameState()}
         rotateModeArmed={false}
+        pendingRotation={null}
+        undoRequestId={0}
         onPlaceMark={vi.fn()}
         onLayerRotation={vi.fn()}
+        onUndoRotationComplete={vi.fn()}
       />,
     );
 
@@ -292,8 +295,11 @@ describe("CubeScene", () => {
       <CubeScene
         game={createGameState()}
         rotateModeArmed
+        pendingRotation={null}
+        undoRequestId={0}
         onPlaceMark={vi.fn()}
         onLayerRotation={vi.fn()}
+        onUndoRotationComplete={vi.fn()}
       />,
     );
 
@@ -306,8 +312,27 @@ describe("CubeScene", () => {
       <CubeScene
         game={createGameState()}
         rotateModeArmed={false}
+        pendingRotation={null}
+        undoRequestId={0}
         onPlaceMark={vi.fn()}
         onLayerRotation={vi.fn()}
+        onUndoRotationComplete={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain('data-animation-state="idle"');
+  });
+
+  it("accepts pending undo animation props", () => {
+    const html = renderToStaticMarkup(
+      <CubeScene
+        game={createGameState()}
+        rotateModeArmed={false}
+        pendingRotation={{ axis: "x", layerIndex: 1, direction: 1 }}
+        undoRequestId={1}
+        onPlaceMark={vi.fn()}
+        onLayerRotation={vi.fn()}
+        onUndoRotationComplete={vi.fn()}
       />,
     );
 
@@ -338,8 +363,11 @@ describe("CubeScene", () => {
           <CubeScene
             game={createGameState()}
             rotateModeArmed
+            pendingRotation={null}
+            undoRequestId={0}
             onPlaceMark={vi.fn()}
             onLayerRotation={onLayerRotation}
+            onUndoRotationComplete={vi.fn()}
           />,
         );
       });
