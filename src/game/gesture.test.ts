@@ -64,4 +64,8 @@ describe("resolveRotationGesture", () => {
   it("returns null for preview movement below the intent threshold", () => {
     expect(resolveRotationGesturePreview(bounds, { x: 150, y: 150 }, { x: 158, y: 154 })).toBeNull();
   });
+
+  it("returns null for unresolved preview movement above the intent threshold", () => {
+    expect(resolveRotationGesturePreview(bounds, { x: 150, y: 20 }, { x: 170, y: 20 })).toBeNull();
+  });
 });
