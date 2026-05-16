@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CubeScene } from "./components/CubeScene";
 import { GameHud } from "./components/GameHud";
 import {
   applyTurnRotation,
@@ -44,16 +45,12 @@ export default function App() {
         />
 
         <section className="scene-panel" aria-label="Game board">
-          <p>
-            Cube scene will render here. Active player: {game.currentPlayer}. Rotation armed:{" "}
-            {rotateModeArmed ? "yes" : "no"}.
-          </p>
-          <button type="button" onClick={() => handlePlaceMark({ face: "front", row: 0, col: 0 })}>
-            Temporary place mark
-          </button>
-          <button type="button" onClick={() => handleLayerRotation(null)}>
-            Temporary no-op rotation
-          </button>
+          <CubeScene
+            game={game}
+            rotateModeArmed={rotateModeArmed}
+            onPlaceMark={handlePlaceMark}
+            onLayerRotation={handleLayerRotation}
+          />
         </section>
       </div>
     </main>
