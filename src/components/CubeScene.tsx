@@ -142,6 +142,10 @@ export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation 
   }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (event.target instanceof HTMLElement && event.target.closest(".active-face-cell")) {
+      return;
+    }
+
     event.currentTarget.setPointerCapture(event.pointerId);
     const point = pointFromEvent(event);
     setDrag({ start: point, latest: point, moved: false });
