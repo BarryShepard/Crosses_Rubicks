@@ -260,6 +260,14 @@ export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation 
     return Math.abs(current.angle) < quarterTurnRadians * 0.2;
   }
 
+  function matchesRotation(first: LayerRotation, second: LayerRotation) {
+    return (
+      first.axis === second.axis &&
+      first.layerIndex === second.layerIndex &&
+      first.direction === second.direction
+    );
+  }
+
   useEffect(() => {
     if (drag) {
       return;
@@ -365,14 +373,26 @@ export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation 
     }
 
     const preview = rotationPreviewRef.current;
-    const rotation = bounds ? resolveRotationGesture(bounds, drag.start, latest) : null;
+    const resolved = bounds ? resolveRotationGesture(bounds, drag.start, latest) : null;
 
-    if (rotation && preview?.commitReady) {
+    if (resolved) {
+      const commitPreview =
+        preview && matchesRotation(preview.rotation, resolved)
+          ? { ...preview, rotation: resolved, commitReady: true }
+          : {
+              rotation: resolved,
+              angle: 0,
+              progress: 0,
+              commitReady: true,
+              phase: "dragging" as const,
+            };
+
+      updateRotationPreview(commitPreview);
       animatePreviewTo(
         "committing",
-        preview.angle,
-        previewAngleForProgress(preview.rotation, 1),
-        () => onLayerRotation(preview.rotation),
+        commitPreview.angle,
+        previewAngleForProgress(resolved, 1),
+        () => onLayerRotation(resolved),
       );
       return;
     }
@@ -419,7 +439,7 @@ export function CubeScene({ game, rotateModeArmed, onPlaceMark, onLayerRotation 
 
           const preview = rotationPreviewRef.current;
 
-          if (preview) {
+          if (preview?.phase === "dragging") {
             animatePreviewTo("cancelling", preview.angle, 0, () => onLayerRotation(null));
           }
         }}
