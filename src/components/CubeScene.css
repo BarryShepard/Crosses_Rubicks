@@ -1,0 +1,88 @@
+.cube-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  background: radial-gradient(circle at 50% 36%, #ffffff 0%, #edf3fb 72%);
+}
+
+.cube-scene canvas {
+  display: block;
+}
+
+.cube-interaction-layer {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: grab;
+}
+
+.cube-interaction-layer:active {
+  cursor: grabbing;
+}
+
+.active-face-grid {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  width: min(42vw, 248px);
+  max-width: 248px;
+  aspect-ratio: 1;
+  grid-template-columns: repeat(3, 1fr);
+  transform: translate(-50%, -50%);
+}
+
+.active-face-cell {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.active-face-cell:disabled {
+  cursor: default;
+}
+
+.z-gesture-rings {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(58vw, 340px);
+  max-width: 340px;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.z-gesture-rings span {
+  position: absolute;
+  border: 1px dashed #4267ff;
+  border-radius: 50%;
+}
+
+.z-gesture-rings span:nth-child(1) {
+  inset: 6%;
+}
+
+.z-gesture-rings span:nth-child(2) {
+  inset: 15%;
+}
+
+.z-gesture-rings span:nth-child(3) {
+  inset: 24%;
+}
+
+.rotation-armed .z-gesture-rings {
+  opacity: 0.72;
+}
+
+@media (max-width: 720px) {
+  .cube-scene {
+    min-height: 430px;
+  }
+
+  .active-face-grid {
+    width: min(56vw, 224px);
+  }
+}
