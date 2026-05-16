@@ -68,17 +68,17 @@ describe("rotation preview helpers", () => {
   });
 
   it("converts a rotation angle into a Three.js Euler tuple", () => {
-    expect(rotationToEuler({ axis: "x", layerIndex: 1, direction: 1 }, 0.25)).toEqual([
+    expect(rotationToEuler({ axis: "x" }, 0.25)).toEqual([
       0.25,
       0,
       0,
     ]);
-    expect(rotationToEuler({ axis: "y", layerIndex: 1, direction: 1 }, 0.25)).toEqual([
+    expect(rotationToEuler({ axis: "y" }, 0.25)).toEqual([
       0,
       0.25,
       0,
     ]);
-    expect(rotationToEuler({ axis: "z", layerIndex: 1, direction: 1 }, 0.25)).toEqual([
+    expect(rotationToEuler({ axis: "z" }, 0.25)).toEqual([
       0,
       0,
       0.25,
