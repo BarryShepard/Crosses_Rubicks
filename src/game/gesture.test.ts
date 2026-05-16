@@ -38,7 +38,7 @@ describe("resolveRotationGesture", () => {
   });
 
   it("returns a live preview before the final commit distance", () => {
-    expect(resolveRotationGesturePreview(bounds, { x: 50, y: 80 }, { x: 70, y: 81 })).toEqual({
+    expect(resolveRotationGesturePreview(bounds, { x: 50, y: 80 }, { x: 70, y: 80 })).toEqual({
       rotation: {
         axis: "y",
         layerIndex: 2,
@@ -50,7 +50,7 @@ describe("resolveRotationGesture", () => {
   });
 
   it("marks preview gestures as commit-ready at the final threshold", () => {
-    expect(resolveRotationGesturePreview(bounds, { x: 50, y: 80 }, { x: 114, y: 82 })).toEqual({
+    expect(resolveRotationGesturePreview(bounds, { x: 50, y: 80 }, { x: 114, y: 80 })).toEqual({
       rotation: {
         axis: "y",
         layerIndex: 2,

@@ -45,10 +45,6 @@ function clampProgress(progress: number): number {
   return Math.min(1, Math.max(0, progress));
 }
 
-function previewProgress(start: Point, end: Point): number {
-  return Math.floor(clampProgress(distance(start, end) / minDragDistance) * 1000) / 1000;
-}
-
 function angle(point: Point, center: Point): number {
   return Math.atan2(point.y - center.y, point.x - center.x);
 }
@@ -162,7 +158,7 @@ export function resolveRotationGesturePreview(
 
   return {
     rotation,
-    progress: previewProgress(start, end),
+    progress: clampProgress(distance(start, end) / minDragDistance),
     commitReady: Boolean(resolveRotationGesture(bounds, start, end)),
   };
 }
