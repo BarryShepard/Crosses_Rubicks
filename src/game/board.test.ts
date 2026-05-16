@@ -82,6 +82,27 @@ describe("game state", () => {
     expect(blocked).toBe(rotated);
   });
 
+  it("blocks only the next turn from immediately reversing the same layer", () => {
+    let state = createGameState();
+    state = applyTurnRotation(state, { axis: "x", layerIndex: 1, direction: 1 });
+    state = placeMark(state, { face: "front", row: 0, col: 0 });
+
+    const blocked = applyTurnRotation(state, { axis: "x", layerIndex: 1, direction: -1 });
+    expect(blocked).toBe(state);
+
+    const allowedSameDirection = applyTurnRotation(state, { axis: "x", layerIndex: 1, direction: 1 });
+    expect(allowedSameDirection).not.toBe(state);
+
+    state = placeMark(state, { face: "front", row: 0, col: 1 });
+    const allowedAfterOneTurn = applyTurnRotation(state, {
+      axis: "x",
+      layerIndex: 1,
+      direction: -1,
+    });
+
+    expect(allowedAfterOneTurn).not.toBe(state);
+  });
+
   it("undoes the current-turn rotation before placement", () => {
     const state = createGameState();
     const rotated = applyTurnRotation(state, { axis: "x", layerIndex: 1, direction: 1 });

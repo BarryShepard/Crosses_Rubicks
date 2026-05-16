@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { CubeScene } from "./components/CubeScene";
 import { GameHud } from "./components/GameHud";
 import {
@@ -14,6 +14,7 @@ export default function App() {
   const [game, setGame] = useState(() => createGameState());
   const [rotateModeArmed, setRotateModeArmed] = useState(false);
   const [undoRequestId, setUndoRequestId] = useState(0);
+  const [undoAnimating, setUndoAnimating] = useState(false);
 
   function handlePlaceMark(cell: CellId) {
     setGame((current) => placeMark(current, cell));
@@ -30,23 +31,33 @@ export default function App() {
   }
 
   function handleNewGame() {
+    if (undoAnimating) {
+      return;
+    }
+
     setGame((current) => startNewGame(current));
     setRotateModeArmed(false);
   }
 
   function handleUndoRotation() {
+    if (undoAnimating) {
+      return;
+    }
+
     if (!game.pendingRotation) {
       setGame((current) => undoTurnRotation(current));
       return;
     }
 
+    setUndoAnimating(true);
     setRotateModeArmed(false);
     setUndoRequestId((current) => current + 1);
   }
 
-  function handleUndoRotationComplete() {
+  const handleUndoRotationComplete = useCallback(() => {
     setGame((current) => undoTurnRotation(current));
-  }
+    setUndoAnimating(false);
+  }, []);
 
   return (
     <main className="app">
@@ -54,6 +65,7 @@ export default function App() {
         <GameHud
           game={game}
           rotateModeArmed={rotateModeArmed}
+          interactionLocked={undoAnimating}
           onArmRotateMode={() => setRotateModeArmed(true)}
           onUndoRotation={handleUndoRotation}
           onNewGame={handleNewGame}

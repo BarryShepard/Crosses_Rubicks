@@ -4,6 +4,7 @@ import "./GameHud.css";
 type GameHudProps = {
   game: GameState;
   rotateModeArmed: boolean;
+  interactionLocked: boolean;
   onArmRotateMode: () => void;
   onUndoRotation: () => void;
   onNewGame: () => void;
@@ -32,12 +33,15 @@ function statusText(game: GameState, rotateModeArmed: boolean): string {
 export function GameHud({
   game,
   rotateModeArmed,
+  interactionLocked,
   onArmRotateMode,
   onUndoRotation,
   onNewGame,
 }: GameHudProps) {
-  const rotationDisabled = game.status !== "playing" || game.rotationUsed || rotateModeArmed;
-  const undoDisabled = game.status !== "playing" || !game.rotationUsed;
+  const rotationDisabled =
+    interactionLocked || game.status !== "playing" || game.rotationUsed || rotateModeArmed;
+  const undoDisabled = interactionLocked || game.status !== "playing" || !game.rotationUsed;
+  const newGameDisabled = interactionLocked;
 
   return (
     <header className="game-hud">
@@ -59,7 +63,7 @@ export function GameHud({
         <button type="button" onClick={onUndoRotation} disabled={undoDisabled}>
           Undo rotation
         </button>
-        <button type="button" onClick={onNewGame}>
+        <button type="button" onClick={onNewGame} disabled={newGameDisabled}>
           New game
         </button>
       </div>

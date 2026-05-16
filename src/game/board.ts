@@ -24,10 +24,27 @@ export type GameState = {
   winningLine: CellKey[];
   rotationUsed: boolean;
   pendingUndoBoard: Board | null;
+  pendingRotation: LayerRotation | null;
+  blockedRotation: LayerRotation | null;
 };
 
 function nextPlayer(player: Player): Player {
   return player === "X" ? "O" : "X";
+}
+
+function inverseRotation(rotation: LayerRotation): LayerRotation {
+  return {
+    ...rotation,
+    direction: rotation.direction === 1 ? -1 : 1,
+  };
+}
+
+function isSameRotation(left: LayerRotation, right: LayerRotation): boolean {
+  return (
+    left.axis === right.axis &&
+    left.layerIndex === right.layerIndex &&
+    left.direction === right.direction
+  );
 }
 
 function finalizeState(state: GameState): GameState {
@@ -69,6 +86,8 @@ export function createGameState(board = createEmptyBoard()): GameState {
     winningLine: [],
     rotationUsed: false,
     pendingUndoBoard: null,
+    pendingRotation: null,
+    blockedRotation: null,
   });
 }
 
@@ -93,6 +112,8 @@ export function placeMark(state: GameState, cell: CellId): GameState {
     board,
     rotationUsed: false,
     pendingUndoBoard: null,
+    pendingRotation: null,
+    blockedRotation: state.pendingRotation ? inverseRotation(state.pendingRotation) : null,
   });
 
   if (placedState.status !== "playing") {
@@ -106,7 +127,11 @@ export function placeMark(state: GameState, cell: CellId): GameState {
 }
 
 export function applyTurnRotation(state: GameState, rotation: LayerRotation): GameState {
-  if (state.status !== "playing" || state.rotationUsed) {
+  if (
+    state.status !== "playing" ||
+    state.rotationUsed ||
+    (state.blockedRotation && isSameRotation(rotation, state.blockedRotation))
+  ) {
     return state;
   }
 
@@ -115,6 +140,7 @@ export function applyTurnRotation(state: GameState, rotation: LayerRotation): Ga
     board: applyLayerRotation(state.board, rotation),
     rotationUsed: true,
     pendingUndoBoard: cloneBoard(state.board),
+    pendingRotation: rotation,
   };
 }
 
@@ -128,6 +154,7 @@ export function undoTurnRotation(state: GameState): GameState {
     board: cloneBoard(state.pendingUndoBoard),
     rotationUsed: false,
     pendingUndoBoard: null,
+    pendingRotation: null,
   };
 }
 

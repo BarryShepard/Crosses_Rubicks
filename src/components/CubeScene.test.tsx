@@ -419,4 +419,71 @@ describe("CubeScene", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("completes pending undo only after a new undo request animation finishes", async () => {
+    const document = installDomShim();
+    const { createRoot } = await import("react-dom/client");
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const onUndoRotationComplete = vi.fn();
+    let root: Root | null = null;
+
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      rafCallbacks.push(callback);
+      return rafCallbacks.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(performance, "now").mockReturnValue(0);
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+
+    try {
+      act(() => {
+        root = createRoot(container as unknown as Element);
+        root.render(
+          <CubeScene
+            game={createGameState()}
+            rotateModeArmed={false}
+            pendingRotation={{ axis: "x", layerIndex: 1, direction: 1 }}
+            undoRequestId={0}
+            onPlaceMark={vi.fn()}
+            onLayerRotation={vi.fn()}
+            onUndoRotationComplete={onUndoRotationComplete}
+          />,
+        );
+      });
+
+      expect(onUndoRotationComplete).not.toHaveBeenCalled();
+      expect(rafCallbacks).toHaveLength(0);
+
+      act(() => {
+        root!.render(
+          <CubeScene
+            game={createGameState()}
+            rotateModeArmed={false}
+            pendingRotation={{ axis: "x", layerIndex: 1, direction: 1 }}
+            undoRequestId={1}
+            onPlaceMark={vi.fn()}
+            onLayerRotation={vi.fn()}
+            onUndoRotationComplete={onUndoRotationComplete}
+          />,
+        );
+      });
+
+      expect(onUndoRotationComplete).not.toHaveBeenCalled();
+      expect(rafCallbacks).toHaveLength(1);
+
+      act(() => {
+        rafCallbacks[0](200);
+      });
+
+      expect(onUndoRotationComplete).toHaveBeenCalledTimes(1);
+    } finally {
+      act(() => {
+        root?.unmount();
+      });
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+  });
 });

@@ -9,6 +9,7 @@ describe("GameHud", () => {
       <GameHud
         game={createGameState()}
         rotateModeArmed={false}
+        interactionLocked={false}
         onArmRotateMode={vi.fn()}
         onUndoRotation={vi.fn()}
         onNewGame={vi.fn()}
@@ -33,6 +34,7 @@ describe("GameHud", () => {
       <GameHud
         game={game}
         rotateModeArmed={false}
+        interactionLocked={false}
         onArmRotateMode={vi.fn()}
         onUndoRotation={vi.fn()}
         onNewGame={vi.fn()}
@@ -41,5 +43,20 @@ describe("GameHud", () => {
 
     expect(html).toContain("Place X");
     expect(html).toContain("disabled");
+  });
+
+  it("disables all controls when interactions are locked", () => {
+    const html = renderToStaticMarkup(
+      <GameHud
+        game={createGameState()}
+        rotateModeArmed={false}
+        interactionLocked
+        onArmRotateMode={vi.fn()}
+        onUndoRotation={vi.fn()}
+        onNewGame={vi.fn()}
+      />,
+    );
+
+    expect(html.match(/disabled=""/g)).toHaveLength(3);
   });
 });
