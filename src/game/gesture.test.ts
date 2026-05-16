@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveRotationGesture } from "./gesture";
+import { resolveRotationGesture, resolveRotationGesturePreview } from "./gesture";
 
 const bounds = {
   left: 0,
@@ -21,7 +21,7 @@ describe("resolveRotationGesture", () => {
     expect(resolveRotationGesture(bounds, { x: 225, y: 70 }, { x: 224, y: 210 })).toEqual({
       axis: "x",
       layerIndex: 2,
-      direction: -1,
+      direction: 1,
     });
   });
 
@@ -35,5 +35,33 @@ describe("resolveRotationGesture", () => {
 
   it("returns null for short gestures", () => {
     expect(resolveRotationGesture(bounds, { x: 150, y: 150 }, { x: 158, y: 154 })).toBeNull();
+  });
+
+  it("returns a live preview before the final commit distance", () => {
+    expect(resolveRotationGesturePreview(bounds, { x: 50, y: 80 }, { x: 70, y: 81 })).toEqual({
+      rotation: {
+        axis: "y",
+        layerIndex: 2,
+        direction: 1,
+      },
+      progress: 0.625,
+      commitReady: false,
+    });
+  });
+
+  it("marks preview gestures as commit-ready at the final threshold", () => {
+    expect(resolveRotationGesturePreview(bounds, { x: 50, y: 80 }, { x: 114, y: 82 })).toEqual({
+      rotation: {
+        axis: "y",
+        layerIndex: 2,
+        direction: 1,
+      },
+      progress: 1,
+      commitReady: true,
+    });
+  });
+
+  it("returns null for preview movement below the intent threshold", () => {
+    expect(resolveRotationGesturePreview(bounds, { x: 150, y: 150 }, { x: 158, y: 154 })).toBeNull();
   });
 });

@@ -12,7 +12,14 @@ export type Rect = {
   height: number;
 };
 
+export type RotationGesturePreview = {
+  rotation: LayerRotation;
+  progress: number;
+  commitReady: boolean;
+};
+
 const minDragDistance = 32;
+const minPreviewDistance = 12;
 
 function clampLayer(layer: number): LayerIndex {
   if (layer <= 0) {
@@ -32,6 +39,14 @@ function layerFromRatio(ratio: number): LayerIndex {
 
 function distance(start: Point, end: Point): number {
   return Math.hypot(end.x - start.x, end.y - start.y);
+}
+
+function clampProgress(progress: number): number {
+  return Math.min(1, Math.max(0, progress));
+}
+
+function previewProgress(start: Point, end: Point): number {
+  return Math.floor(clampProgress(distance(start, end) / minDragDistance) * 1000) / 1000;
 }
 
 function angle(point: Point, center: Point): number {
@@ -61,8 +76,13 @@ function isInsideSquare(point: Point, square: ReturnType<typeof normalizedSquare
   );
 }
 
-export function resolveRotationGesture(bounds: Rect, start: Point, end: Point): LayerRotation | null {
-  if (distance(start, end) < minDragDistance) {
+function resolveRotationGestureWithThreshold(
+  bounds: Rect,
+  start: Point,
+  end: Point,
+  threshold: number,
+): LayerRotation | null {
+  if (distance(start, end) < threshold) {
     return null;
   }
 
@@ -93,7 +113,7 @@ export function resolveRotationGesture(bounds: Rect, start: Point, end: Point): 
     return {
       axis: "x",
       layerIndex: layerFromRatio(colRatio),
-      direction: dy > 0 ? -1 : 1,
+      direction: dy > 0 ? 1 : -1,
     };
   }
 
@@ -122,5 +142,27 @@ export function resolveRotationGesture(bounds: Rect, start: Point, end: Point): 
     axis: "z",
     layerIndex: layerFromRatio(bandRatio),
     direction: delta > 0 ? 1 : -1,
+  };
+}
+
+export function resolveRotationGesture(bounds: Rect, start: Point, end: Point): LayerRotation | null {
+  return resolveRotationGestureWithThreshold(bounds, start, end, minDragDistance);
+}
+
+export function resolveRotationGesturePreview(
+  bounds: Rect,
+  start: Point,
+  end: Point,
+): RotationGesturePreview | null {
+  const rotation = resolveRotationGestureWithThreshold(bounds, start, end, minPreviewDistance);
+
+  if (!rotation) {
+    return null;
+  }
+
+  return {
+    rotation,
+    progress: previewProgress(start, end),
+    commitReady: Boolean(resolveRotationGesture(bounds, start, end)),
   };
 }
