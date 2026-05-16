@@ -31,6 +31,7 @@ import "./CubeScene.css";
 type CubeSceneProps = {
   game: GameState;
   rotateModeArmed: boolean;
+  interactionLocked?: boolean;
   pendingRotation: LayerRotation | null;
   undoRequestId: number;
   onPlaceMark: (cell: CellId) => void;
@@ -173,6 +174,7 @@ function CubeModel({ game, preview }: { game: GameState; preview: RotationPrevie
 export function CubeScene({
   game,
   rotateModeArmed,
+  interactionLocked: externalInteractionLocked = false,
   pendingRotation,
   undoRequestId,
   onPlaceMark,
@@ -186,10 +188,11 @@ export function CubeScene({
   const [drag, setDrag] = useState<DragState | null>(null);
   const [viewRotation, setViewRotation] = useState<[number, number]>([0, 0]);
   const [rotationPreview, setRotationPreviewState] = useState<RotationPreviewState | null>(null);
-  const interactionLocked =
+  const localAnimationLocked =
     rotationPreview?.phase === "committing" ||
     rotationPreview?.phase === "cancelling" ||
     rotationPreview?.phase === "undoing";
+  const interactionLocked = externalInteractionLocked || localAnimationLocked;
 
   const updateRotationPreview = useCallback(
     (
@@ -363,7 +366,7 @@ export function CubeScene({
   }
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
-    if (!drag) {
+    if (!drag || interactionLocked) {
       return;
     }
 
@@ -406,6 +409,11 @@ export function CubeScene({
 
   function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
     if (!drag) {
+      return;
+    }
+
+    if (interactionLocked) {
+      setDrag(null);
       return;
     }
 

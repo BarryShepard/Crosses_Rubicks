@@ -17,11 +17,19 @@ export default function App() {
   const [undoAnimating, setUndoAnimating] = useState(false);
 
   function handlePlaceMark(cell: CellId) {
+    if (undoAnimating) {
+      return;
+    }
+
     setGame((current) => placeMark(current, cell));
     setRotateModeArmed(false);
   }
 
   function handleLayerRotation(rotation: LayerRotation | null) {
+    if (undoAnimating) {
+      return;
+    }
+
     if (!rotation) {
       return;
     }
@@ -75,6 +83,7 @@ export default function App() {
           <CubeScene
             game={game}
             rotateModeArmed={rotateModeArmed}
+            interactionLocked={undoAnimating}
             pendingRotation={game.pendingRotation}
             undoRequestId={undoRequestId}
             onPlaceMark={handlePlaceMark}

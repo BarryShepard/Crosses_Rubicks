@@ -323,6 +323,23 @@ describe("CubeScene", () => {
     expect(html).toContain('data-animation-state="idle"');
   });
 
+  it("disables scene placement controls immediately when interactions are locked", () => {
+    const html = renderToStaticMarkup(
+      <CubeScene
+        game={createGameState()}
+        rotateModeArmed={false}
+        interactionLocked
+        pendingRotation={null}
+        undoRequestId={0}
+        onPlaceMark={vi.fn()}
+        onLayerRotation={vi.fn()}
+        onUndoRotationComplete={vi.fn()}
+      />,
+    );
+
+    expect(html.match(/disabled=""/g) ?? []).toHaveLength(9);
+  });
+
   it("accepts pending undo animation props", () => {
     const html = renderToStaticMarkup(
       <CubeScene
