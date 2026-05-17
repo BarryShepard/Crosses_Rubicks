@@ -1,16 +1,14 @@
-import type { GameState } from "../game/board";
+import { canUndoLastAction, type GameState } from "../game/board";
 import "./GameHud.css";
 
 type GameHudProps = {
   game: GameState;
-  rotateModeArmed: boolean;
   interactionLocked: boolean;
-  onArmRotateMode: () => void;
-  onUndoRotation: () => void;
+  onUndo: () => void;
   onNewGame: () => void;
 };
 
-function statusText(game: GameState, rotateModeArmed: boolean): string {
+function statusText(game: GameState): string {
   if (game.status === "won" && game.winner) {
     return `${game.winner} wins`;
   }
@@ -19,28 +17,20 @@ function statusText(game: GameState, rotateModeArmed: boolean): string {
     return "Draw";
   }
 
-  if (rotateModeArmed) {
-    return "Drag a layer to rotate";
-  }
-
   if (game.rotationUsed) {
     return `Place ${game.currentPlayer}`;
   }
 
-  return `Rotate a layer or place ${game.currentPlayer}`;
+  return `Right-drag to rotate or place ${game.currentPlayer}`;
 }
 
 export function GameHud({
   game,
-  rotateModeArmed,
   interactionLocked,
-  onArmRotateMode,
-  onUndoRotation,
+  onUndo,
   onNewGame,
 }: GameHudProps) {
-  const rotationDisabled =
-    interactionLocked || game.status !== "playing" || game.rotationUsed || rotateModeArmed;
-  const undoDisabled = interactionLocked || game.status !== "playing" || !game.rotationUsed;
+  const undoDisabled = interactionLocked || !canUndoLastAction(game);
   const newGameDisabled = interactionLocked;
 
   return (
@@ -53,15 +43,12 @@ export function GameHud({
       </div>
 
       <p className="status-text" role="status">
-        {statusText(game, rotateModeArmed)}
+        {statusText(game)}
       </p>
 
       <div className="hud-actions">
-        <button type="button" onClick={onArmRotateMode} disabled={rotationDisabled}>
-          Rotate layer
-        </button>
-        <button type="button" onClick={onUndoRotation} disabled={undoDisabled}>
-          Undo rotation
+        <button type="button" onClick={onUndo} disabled={undoDisabled}>
+          Undo
         </button>
         <button type="button" onClick={onNewGame} disabled={newGameDisabled}>
           New game
