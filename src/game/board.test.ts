@@ -10,7 +10,7 @@ import {
   undoLastAction,
   undoTurnRotation,
 } from "./board";
-import { cellKey, createEmptyBoard, type CellKey } from "./types";
+import { cellKey, createEmptyBoard, type CellKey, type LayerRotation } from "./types";
 
 describe("game state", () => {
   it("starts with X, an empty board, and the active front face", () => {
@@ -205,6 +205,26 @@ describe("game state", () => {
     state = placeMark(state, { face: "front", row: 0, col: 0 });
 
     expect(getUndoRotation(state)).toBeNull();
+  });
+
+  it("clones rotations stored for undo so caller mutation cannot corrupt history", () => {
+    const state = placeMark(createGameState(), { face: "front", row: 0, col: 0 });
+    const rotation: LayerRotation = { axis: "y", layerIndex: 2, direction: 1 };
+    const rotated = applyTurnRotation(state, rotation);
+
+    rotation.axis = "z";
+    rotation.layerIndex = 0;
+    rotation.direction = -1;
+
+    expect(rotated.pendingRotation).toEqual({ axis: "y", layerIndex: 2, direction: 1 });
+    expect(getUndoRotation(rotated)).toEqual({ axis: "y", layerIndex: 2, direction: -1 });
+
+    const undone = undoLastAction(rotated);
+
+    expect(undone.board).toEqual(state.board);
+    expect(undone.currentPlayer).toBe(state.currentPlayer);
+    expect(undone.rotationUsed).toBe(state.rotationUsed);
+    expect(undone.history).toHaveLength(state.history.length);
   });
 
   it("undoes a winning placement and returns to a playing state", () => {

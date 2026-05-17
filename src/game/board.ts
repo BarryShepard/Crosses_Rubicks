@@ -54,6 +54,10 @@ function inverseRotation(rotation: LayerRotation): LayerRotation {
   };
 }
 
+function cloneRotation(rotation: LayerRotation | null): LayerRotation | null {
+  return rotation ? { ...rotation } : null;
+}
+
 function isSameRotation(left: LayerRotation, right: LayerRotation): boolean {
   return (
     left.axis === right.axis &&
@@ -72,8 +76,8 @@ function snapshotState(state: GameState): GameSnapshot {
     winningLine: [...state.winningLine],
     rotationUsed: state.rotationUsed,
     pendingUndoBoard: state.pendingUndoBoard ? cloneBoard(state.pendingUndoBoard) : null,
-    pendingRotation: state.pendingRotation,
-    blockedRotation: state.blockedRotation,
+    pendingRotation: cloneRotation(state.pendingRotation),
+    blockedRotation: cloneRotation(state.blockedRotation),
   };
 }
 
@@ -83,6 +87,8 @@ function restoreSnapshot(snapshot: GameSnapshot, history: GameHistoryEntry[]): G
     board: cloneBoard(snapshot.board),
     winningLine: [...snapshot.winningLine],
     pendingUndoBoard: snapshot.pendingUndoBoard ? cloneBoard(snapshot.pendingUndoBoard) : null,
+    pendingRotation: cloneRotation(snapshot.pendingRotation),
+    blockedRotation: cloneRotation(snapshot.blockedRotation),
     history,
   };
 }
@@ -155,7 +161,7 @@ export function placeMark(state: GameState, cell: CellId): GameState {
     rotationUsed: false,
     pendingUndoBoard: null,
     pendingRotation: null,
-    blockedRotation: state.pendingRotation ? inverseRotation(state.pendingRotation) : null,
+    blockedRotation: cloneRotation(state.pendingRotation ? inverseRotation(state.pendingRotation) : null),
     history: [...state.history, { kind: "placement", previous }],
   });
 
@@ -179,8 +185,11 @@ export function applyTurnRotation(state: GameState, rotation: LayerRotation): Ga
     board: applyLayerRotation(state.board, rotation),
     rotationUsed: true,
     pendingUndoBoard: cloneBoard(state.board),
-    pendingRotation: rotation,
-    history: [...state.history, { kind: "rotation", rotation, previous: snapshotState(state) }],
+    pendingRotation: cloneRotation(rotation),
+    history: [
+      ...state.history,
+      { kind: "rotation", rotation: cloneRotation(rotation)!, previous: snapshotState(state) },
+    ],
   };
 }
 
