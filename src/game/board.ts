@@ -127,11 +127,7 @@ export function placeMark(state: GameState, cell: CellId): GameState {
 }
 
 export function applyTurnRotation(state: GameState, rotation: LayerRotation): GameState {
-  if (
-    state.status !== "playing" ||
-    state.rotationUsed ||
-    (state.blockedRotation && isSameRotation(rotation, state.blockedRotation))
-  ) {
+  if (!canApplyTurnRotation(state, rotation)) {
     return state;
   }
 
@@ -142,6 +138,14 @@ export function applyTurnRotation(state: GameState, rotation: LayerRotation): Ga
     pendingUndoBoard: cloneBoard(state.board),
     pendingRotation: rotation,
   };
+}
+
+export function canApplyTurnRotation(state: GameState, rotation: LayerRotation): boolean {
+  return !(
+    state.status !== "playing" ||
+    state.rotationUsed ||
+    (state.blockedRotation && isSameRotation(rotation, state.blockedRotation))
+  );
 }
 
 export function undoTurnRotation(state: GameState): GameState {

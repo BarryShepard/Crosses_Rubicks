@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyTurnRotation,
+  canApplyTurnRotation,
   createGameState,
   placeMark,
   startNewGame,
@@ -80,6 +81,20 @@ describe("game state", () => {
     const blocked = applyTurnRotation(rotated, { axis: "y", layerIndex: 1, direction: -1 });
 
     expect(blocked).toBe(rotated);
+  });
+
+  it("reports whether a turn rotation can be applied", () => {
+    let state = createGameState();
+    const rotation = { axis: "x", layerIndex: 1, direction: 1 } as const;
+
+    expect(canApplyTurnRotation(state, rotation)).toBe(true);
+
+    state = applyTurnRotation(state, rotation);
+    expect(canApplyTurnRotation(state, { axis: "y", layerIndex: 1, direction: -1 })).toBe(false);
+
+    state = placeMark(state, { face: "front", row: 0, col: 0 });
+    expect(canApplyTurnRotation(state, { axis: "x", layerIndex: 1, direction: -1 })).toBe(false);
+    expect(canApplyTurnRotation(state, rotation)).toBe(true);
   });
 
   it("blocks only the next turn from immediately reversing the same layer", () => {

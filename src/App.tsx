@@ -3,6 +3,7 @@ import { CubeScene } from "./components/CubeScene";
 import { GameHud } from "./components/GameHud";
 import {
   applyTurnRotation,
+  canApplyTurnRotation,
   createGameState,
   placeMark,
   startNewGame,
@@ -15,9 +16,11 @@ export default function App() {
   const [rotateModeArmed, setRotateModeArmed] = useState(false);
   const [undoRequestId, setUndoRequestId] = useState(0);
   const [undoAnimating, setUndoAnimating] = useState(false);
+  const [sceneAnimating, setSceneAnimating] = useState(false);
+  const interactionLocked = undoAnimating || sceneAnimating;
 
   function handlePlaceMark(cell: CellId) {
-    if (undoAnimating) {
+    if (interactionLocked) {
       return;
     }
 
@@ -39,7 +42,7 @@ export default function App() {
   }
 
   function handleNewGame() {
-    if (undoAnimating) {
+    if (interactionLocked) {
       return;
     }
 
@@ -48,7 +51,7 @@ export default function App() {
   }
 
   function handleUndoRotation() {
-    if (undoAnimating) {
+    if (interactionLocked) {
       return;
     }
 
@@ -67,14 +70,27 @@ export default function App() {
     setUndoAnimating(false);
   }, []);
 
+  const handleArmRotateMode = useCallback(() => {
+    if (interactionLocked) {
+      return;
+    }
+
+    setRotateModeArmed(true);
+  }, [interactionLocked]);
+
+  const handleCanRotateLayer = useCallback(
+    (rotation: LayerRotation) => canApplyTurnRotation(game, rotation),
+    [game],
+  );
+
   return (
     <main className="app">
       <div className="game-shell">
         <GameHud
           game={game}
           rotateModeArmed={rotateModeArmed}
-          interactionLocked={undoAnimating}
-          onArmRotateMode={() => setRotateModeArmed(true)}
+          interactionLocked={interactionLocked}
+          onArmRotateMode={handleArmRotateMode}
           onUndoRotation={handleUndoRotation}
           onNewGame={handleNewGame}
         />
@@ -83,12 +99,14 @@ export default function App() {
           <CubeScene
             game={game}
             rotateModeArmed={rotateModeArmed}
-            interactionLocked={undoAnimating}
+            interactionLocked={interactionLocked}
             pendingRotation={game.pendingRotation}
             undoRequestId={undoRequestId}
             onPlaceMark={handlePlaceMark}
             onLayerRotation={handleLayerRotation}
             onUndoRotationComplete={handleUndoRotationComplete}
+            canRotateLayer={handleCanRotateLayer}
+            onAnimationLockChange={setSceneAnimating}
           />
         </section>
       </div>

@@ -437,6 +437,177 @@ describe("CubeScene", () => {
     }
   });
 
+  it("notifies animation lock changes around commit completion", async () => {
+    const document = installDomShim();
+    const { createRoot } = await import("react-dom/client");
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const onLayerRotation = vi.fn();
+    const onAnimationLockChange = vi.fn();
+    let root: Root | null = null;
+
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      rafCallbacks.push(callback);
+      return rafCallbacks.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(performance, "now").mockReturnValue(0);
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+
+    try {
+      act(() => {
+        root = createRoot(container as unknown as Element);
+        root.render(
+          <CubeScene
+            game={createGameState()}
+            rotateModeArmed
+            pendingRotation={null}
+            undoRequestId={0}
+            onPlaceMark={vi.fn()}
+            onLayerRotation={onLayerRotation}
+            onUndoRotationComplete={vi.fn()}
+            onAnimationLockChange={onAnimationLockChange}
+          />,
+        );
+      });
+
+      const interactionLayer = container.querySelector(".cube-interaction-layer");
+      expect(interactionLayer).not.toBeNull();
+      interactionLayer!.rect = {
+        left: 0,
+        top: 0,
+        width: 300,
+        height: 300,
+        right: 300,
+        bottom: 300,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      };
+
+      act(() => {
+        reactPropsFor(interactionLayer!).onPointerDown(pointerEvent(interactionLayer!, 100, 100));
+      });
+
+      const draggedInteractionLayer = container.querySelector(".cube-interaction-layer");
+      expect(draggedInteractionLayer).not.toBeNull();
+
+      act(() => {
+        reactPropsFor(draggedInteractionLayer!).onPointerUp(
+          pointerEvent(draggedInteractionLayer!, 180, 100),
+        );
+      });
+
+      expect(onAnimationLockChange).toHaveBeenCalledWith(true);
+      expect(onLayerRotation).not.toHaveBeenCalled();
+
+      act(() => {
+        rafCallbacks[0](200);
+      });
+
+      expect(onLayerRotation).toHaveBeenCalledWith({
+        axis: "y",
+        layerIndex: 2,
+        direction: 1,
+      });
+      const lastLockCall =
+        onAnimationLockChange.mock.calls[onAnimationLockChange.mock.calls.length - 1];
+      const lastLockOrder =
+        onAnimationLockChange.mock.invocationCallOrder[
+          onAnimationLockChange.mock.invocationCallOrder.length - 1
+        ];
+      expect(lastLockCall).toEqual([false]);
+      expect(onLayerRotation.mock.invocationCallOrder[0]).toBeLessThan(
+        lastLockOrder,
+      );
+    } finally {
+      act(() => {
+        root?.unmount();
+      });
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not commit a resolved rotation when the layer cannot rotate", async () => {
+    const document = installDomShim();
+    const { createRoot } = await import("react-dom/client");
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const onLayerRotation = vi.fn();
+    let root: Root | null = null;
+
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      rafCallbacks.push(callback);
+      return rafCallbacks.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(performance, "now").mockReturnValue(0);
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+
+    try {
+      act(() => {
+        root = createRoot(container as unknown as Element);
+        root.render(
+          <CubeScene
+            game={createGameState()}
+            rotateModeArmed
+            pendingRotation={null}
+            undoRequestId={0}
+            canRotateLayer={() => false}
+            onPlaceMark={vi.fn()}
+            onLayerRotation={onLayerRotation}
+            onUndoRotationComplete={vi.fn()}
+          />,
+        );
+      });
+
+      const interactionLayer = container.querySelector(".cube-interaction-layer");
+      expect(interactionLayer).not.toBeNull();
+      interactionLayer!.rect = {
+        left: 0,
+        top: 0,
+        width: 300,
+        height: 300,
+        right: 300,
+        bottom: 300,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      };
+
+      act(() => {
+        reactPropsFor(interactionLayer!).onPointerDown(pointerEvent(interactionLayer!, 100, 100));
+      });
+
+      const draggedInteractionLayer = container.querySelector(".cube-interaction-layer");
+      expect(draggedInteractionLayer).not.toBeNull();
+
+      act(() => {
+        reactPropsFor(draggedInteractionLayer!).onPointerUp(
+          pointerEvent(draggedInteractionLayer!, 180, 100),
+        );
+      });
+
+      expect(onLayerRotation).toHaveBeenCalledTimes(1);
+      expect(onLayerRotation).toHaveBeenCalledWith(null);
+      expect(onLayerRotation).not.toHaveBeenCalledWith({
+        axis: "y",
+        layerIndex: 2,
+        direction: 1,
+      });
+      expect(rafCallbacks).toHaveLength(0);
+    } finally {
+      act(() => {
+        root?.unmount();
+      });
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("completes pending undo only after a new undo request animation finishes", async () => {
     const document = installDomShim();
     const { createRoot } = await import("react-dom/client");

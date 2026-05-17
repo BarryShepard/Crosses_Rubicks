@@ -37,6 +37,8 @@ type CubeSceneProps = {
   onPlaceMark: (cell: CellId) => void;
   onLayerRotation: (rotation: LayerRotation | null) => void;
   onUndoRotationComplete: () => void;
+  canRotateLayer?: (rotation: LayerRotation) => boolean;
+  onAnimationLockChange?: (locked: boolean) => void;
 };
 
 type DragState = {
@@ -180,6 +182,8 @@ export function CubeScene({
   onPlaceMark,
   onLayerRotation,
   onUndoRotationComplete,
+  canRotateLayer = () => true,
+  onAnimationLockChange = () => undefined,
 }: CubeSceneProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -231,6 +235,7 @@ export function CubeScene({
       }
 
       stopRotationAnimation();
+      onAnimationLockChange(true);
       updateRotationPreview({ ...preview, phase });
 
       const duration = 180;
@@ -251,11 +256,12 @@ export function CubeScene({
         animationFrameRef.current = null;
         updateRotationPreview(null);
         onComplete();
+        onAnimationLockChange(false);
       };
 
       animationFrameRef.current = requestAnimationFrame(step);
     },
-    [stopRotationAnimation, updateRotationPreview],
+    [onAnimationLockChange, stopRotationAnimation, updateRotationPreview],
   );
 
   function shouldReplacePreview(
@@ -429,6 +435,16 @@ export function CubeScene({
     const resolved = bounds ? resolveRotationGesture(bounds, drag.start, latest) : null;
 
     if (resolved) {
+      if (!canRotateLayer(resolved)) {
+        if (preview) {
+          animatePreviewTo("cancelling", preview.angle, 0, () => onLayerRotation(null));
+          return;
+        }
+
+        onLayerRotation(null);
+        return;
+      }
+
       const commitPreview =
         preview && matchesRotation(preview.rotation, resolved)
           ? { ...preview, rotation: resolved, commitReady: true }
