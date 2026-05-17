@@ -108,6 +108,10 @@ export function resolveLayerDrag(bounds: Rect, start: Point, end: Point): LayerR
   return resolveLayerDragWithThreshold(bounds, start, end, minDragDistance);
 }
 
+export function resolveRotationGesture(bounds: Rect, start: Point, end: Point): LayerRotation | null {
+  return resolveLayerDrag(bounds, start, end);
+}
+
 export function resolveLayerDragPreview(
   bounds: Rect,
   start: Point,
@@ -124,4 +128,12 @@ export function resolveLayerDragPreview(
     progress: clampProgress(distance(start, end) / minDragDistance),
     commitReady: Boolean(resolveLayerDrag(bounds, start, end)),
   };
+}
+
+export function resolveRotationGesturePreview(
+  bounds: Rect,
+  start: Point,
+  end: Point,
+): RotationGesturePreview | null {
+  return resolveLayerDragPreview(bounds, start, end);
 }
