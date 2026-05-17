@@ -44,19 +44,26 @@ test("renders a non-empty cube canvas", async ({ page }) => {
 test("allows placing a mark and starting a new game", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("status")).toContainText("Rotate a layer or place X");
+  await expect(page.getByRole("status")).toContainText("Right-drag to rotate or place X");
   await page.getByLabel("Place on row 1, column 1").click();
-  await expect(page.getByRole("status")).toContainText("Rotate a layer or place O");
+  await expect(page.getByRole("status")).toContainText("Right-drag to rotate or place O");
 
   await page.getByRole("button", { name: "New game" }).click();
-  await expect(page.getByRole("status")).toContainText("Rotate a layer or place X");
+  await expect(page.getByRole("status")).toContainText("Right-drag to rotate or place X");
 });
 
-test("arms rotate mode and keeps it armed after an ambiguous drag", async ({ page }) => {
+test("uses Undo for a placed mark", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByRole("button", { name: "Rotate layer" }).click();
-  await expect(page.getByRole("status")).toContainText("Drag a layer to rotate");
+  await page.getByLabel("Place on row 1, column 1").click();
+  await expect(page.getByRole("status")).toContainText("Right-drag to rotate or place O");
+
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByRole("status")).toContainText("Right-drag to rotate or place X");
+});
+
+test("right-dragging the cube performs a layer rotation and enables Undo", async ({ page }) => {
+  await page.goto("/");
 
   const box = await page.locator(".cube-interaction-layer").boundingBox();
   if (!box) {
@@ -64,9 +71,10 @@ test("arms rotate mode and keeps it armed after an ambiguous drag", async ({ pag
   }
 
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 4, box.y + box.height / 2 + 4);
-  await page.mouse.up();
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(box.x + box.width / 2 + 90, box.y + box.height / 2);
+  await page.mouse.up({ button: "right" });
 
-  await expect(page.getByRole("status")).toContainText("Drag a layer to rotate");
+  await expect(page.getByRole("status")).toContainText("Place X");
+  await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
 });
