@@ -169,7 +169,7 @@ function FaceSeamBacking({ face }: { face: Face }) {
       rotation={faceRotation(face)}
     >
       <planeGeometry args={[cubeTheme.seamBackingSize, cubeTheme.seamBackingSize]} />
-      <meshBasicMaterial color={cubeTheme.seamColor} depthWrite={false} />
+      <meshBasicMaterial color={cubeTheme.seamColor} />
     </mesh>
   );
 }
