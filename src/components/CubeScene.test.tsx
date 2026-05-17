@@ -10,7 +10,7 @@ vi.mock("@react-three/fiber", () => ({
 }));
 
 vi.mock("@react-three/drei", () => ({
-  Text: () => null,
+  useTexture: () => [{}, {}],
 }));
 
 type TestListener = EventListenerOrEventListenerObject;

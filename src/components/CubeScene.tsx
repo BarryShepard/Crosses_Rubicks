@@ -1,6 +1,7 @@
-import { Text } from "@react-three/drei";
+import { useTexture } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import type { Texture } from "three";
 import { canPlaceMark, type GameState } from "../game/board";
 import { cellToSticker } from "../game/geometry";
 import {
@@ -26,6 +27,7 @@ import {
   type LayerRotation,
 } from "../game/types";
 import "./CubeScene.css";
+import { cubeTheme } from "./cubeTheme";
 
 type CubeSceneProps = {
   game: GameState;
@@ -94,10 +96,28 @@ function stickerPosition(cell: CellId): [number, number, number] {
   const sticker = cellToSticker(cell);
 
   return [
-    sticker.position.x * 0.72 + sticker.normal.x * 0.34,
-    sticker.position.y * 0.72 + sticker.normal.y * 0.34,
-    sticker.position.z * 0.72 + sticker.normal.z * 0.34,
+    sticker.position.x * cubeTheme.stickerPositionScale +
+      sticker.normal.x * cubeTheme.stickerNormalOffset,
+    sticker.position.y * cubeTheme.stickerPositionScale +
+      sticker.normal.y * cubeTheme.stickerNormalOffset,
+    sticker.position.z * cubeTheme.stickerPositionScale +
+      sticker.normal.z * cubeTheme.stickerNormalOffset,
   ];
+}
+
+function MarkDecal({ texture }: { texture: Texture }) {
+  return (
+    <mesh position={[0, 0, cubeTheme.markOffset]}>
+      <planeGeometry args={[cubeTheme.markSize, cubeTheme.markSize]} />
+      <meshBasicMaterial
+        map={texture}
+        transparent
+        alphaTest={0.1}
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </mesh>
+  );
 }
 
 function Sticker({
@@ -105,43 +125,64 @@ function Sticker({
   owner,
   highlighted,
   previewed = false,
+  markTextures,
 }: {
   cell: CellId;
   owner: "X" | "O" | null;
   highlighted: boolean;
   previewed?: boolean;
+  markTextures: Record<"X" | "O", Texture>;
 }) {
-  const fill = cell.face === "front" ? "#ffffff" : "#e8edf6";
-  const color = highlighted ? "#ffe36e" : previewed ? "#d9e8ff" : fill;
+  const color = highlighted
+    ? "#FFE36E"
+    : previewed
+      ? "#DCE8F4"
+      : cubeTheme.faceColors[cell.face];
 
   return (
     <group position={stickerPosition(cell)} rotation={faceRotation(cell.face)}>
       <mesh>
-        <planeGeometry args={[0.58, 0.58]} />
+        <planeGeometry args={[cubeTheme.stickerSize, cubeTheme.stickerSize]} />
         <meshStandardMaterial
           color={color}
-          emissive={previewed ? "#2f5cff" : "#000000"}
-          emissiveIntensity={previewed ? 0.08 : 0}
+          emissive={previewed ? cubeTheme.seamColor : "#000000"}
+          emissiveIntensity={previewed ? 0.04 : 0}
           roughness={0.82}
           metalness={0.02}
         />
       </mesh>
-      {owner ? (
-        <Text
-          position={[0, 0, 0.018]}
-          fontSize={0.32}
-          color={owner === "X" ? "#111827" : "#d23b4b"}
-          anchorX="center"
-          anchorY="middle"
-        >
-          {owner}
-        </Text>
-      ) : null}
+      {owner ? <MarkDecal texture={markTextures[owner]} /> : null}
     </group>
   );
 }
 
+function FaceSeamBacking({ face }: { face: Face }) {
+  const normal = cellToSticker({ face, row: 1, col: 1 }).normal;
+
+  return (
+    <mesh
+      position={[
+        normal.x * cubeTheme.seamBackingOffset,
+        normal.y * cubeTheme.seamBackingOffset,
+        normal.z * cubeTheme.seamBackingOffset,
+      ]}
+      rotation={faceRotation(face)}
+    >
+      <planeGeometry args={[cubeTheme.seamBackingSize, cubeTheme.seamBackingSize]} />
+      <meshBasicMaterial color={cubeTheme.seamColor} depthWrite={false} />
+    </mesh>
+  );
+}
+
 function CubeModel({ game, preview }: { game: GameState; preview: RotationPreviewState | null }) {
+  const [crossTexture, nullTexture] = useTexture([
+    cubeTheme.markUrls.X,
+    cubeTheme.markUrls.O,
+  ]) as Texture[];
+  const markTextures = useMemo(
+    () => ({ X: crossTexture, O: nullTexture }),
+    [crossTexture, nullTexture],
+  );
   const highlighted = useMemo(() => new Set<CellKey>(game.winningLine), [game.winningLine]);
   const cells = useMemo(() => allCells(), []);
   const previewKeys = useMemo(
@@ -154,14 +195,36 @@ function CubeModel({ game, preview }: { game: GameState; preview: RotationPrevie
   return (
     <group>
       <mesh>
-        <boxGeometry args={[2.05, 2.05, 2.05]} />
-        <meshStandardMaterial color="#d5dde9" roughness={0.9} metalness={0.02} />
+        <boxGeometry
+          args={[
+            cubeTheme.supportCubeSize,
+            cubeTheme.supportCubeSize,
+            cubeTheme.supportCubeSize,
+          ]}
+        />
+        <meshStandardMaterial
+          color={cubeTheme.seamColor}
+          transparent
+          opacity={cubeTheme.supportCubeOpacity}
+          depthWrite={false}
+          roughness={0.9}
+          metalness={0.02}
+        />
       </mesh>
+      {(["front", "back", "right", "left", "top", "bottom"] as Face[]).map((face) => (
+        <FaceSeamBacking key={face} face={face} />
+      ))}
       {staticCells.map((cell) => {
         const key = cellKey(cell);
 
         return (
-          <Sticker key={key} cell={cell} owner={game.board[key]} highlighted={highlighted.has(key)} />
+          <Sticker
+            key={key}
+            cell={cell}
+            owner={game.board[key]}
+            highlighted={highlighted.has(key)}
+            markTextures={markTextures}
+          />
         );
       })}
       {preview ? (
@@ -176,14 +239,15 @@ function CubeModel({ game, preview }: { game: GameState; preview: RotationPrevie
                 owner={game.board[key]}
                 highlighted={highlighted.has(key)}
                 previewed
+                markTextures={markTextures}
               />
             );
           })}
         </group>
       ) : null}
       <mesh position={[0, 0, 1.075]}>
-        <planeGeometry args={[2.28, 2.28]} />
-        <meshBasicMaterial color="#2f5cff" wireframe transparent opacity={0.45} />
+        <planeGeometry args={[cubeTheme.activeFaceFrameSize, cubeTheme.activeFaceFrameSize]} />
+        <meshBasicMaterial color={cubeTheme.seamColor} wireframe transparent opacity={0.5} />
       </mesh>
     </group>
   );
