@@ -15,7 +15,7 @@ import {
 
 export type GameStatus = "playing" | "won" | "draw";
 
-export type GameState = {
+type GameSnapshot = {
   board: Board;
   activeFace: Face;
   currentPlayer: Player;
@@ -26,6 +26,21 @@ export type GameState = {
   pendingUndoBoard: Board | null;
   pendingRotation: LayerRotation | null;
   blockedRotation: LayerRotation | null;
+};
+
+export type GameHistoryEntry =
+  | {
+      kind: "rotation";
+      rotation: LayerRotation;
+      previous: GameSnapshot;
+    }
+  | {
+      kind: "placement";
+      previous: GameSnapshot;
+    };
+
+export type GameState = GameSnapshot & {
+  history: GameHistoryEntry[];
 };
 
 function nextPlayer(player: Player): Player {
@@ -45,6 +60,31 @@ function isSameRotation(left: LayerRotation, right: LayerRotation): boolean {
     left.layerIndex === right.layerIndex &&
     left.direction === right.direction
   );
+}
+
+function snapshotState(state: GameState): GameSnapshot {
+  return {
+    board: cloneBoard(state.board),
+    activeFace: state.activeFace,
+    currentPlayer: state.currentPlayer,
+    status: state.status,
+    winner: state.winner,
+    winningLine: [...state.winningLine],
+    rotationUsed: state.rotationUsed,
+    pendingUndoBoard: state.pendingUndoBoard ? cloneBoard(state.pendingUndoBoard) : null,
+    pendingRotation: state.pendingRotation,
+    blockedRotation: state.blockedRotation,
+  };
+}
+
+function restoreSnapshot(snapshot: GameSnapshot, history: GameHistoryEntry[]): GameState {
+  return {
+    ...snapshot,
+    board: cloneBoard(snapshot.board),
+    winningLine: [...snapshot.winningLine],
+    pendingUndoBoard: snapshot.pendingUndoBoard ? cloneBoard(snapshot.pendingUndoBoard) : null,
+    history,
+  };
 }
 
 function finalizeState(state: GameState): GameState {
@@ -88,6 +128,7 @@ export function createGameState(board = createEmptyBoard()): GameState {
     pendingUndoBoard: null,
     pendingRotation: null,
     blockedRotation: null,
+    history: [],
   });
 }
 
@@ -104,6 +145,7 @@ export function placeMark(state: GameState, cell: CellId): GameState {
     return state;
   }
 
+  const previous = snapshotState(state);
   const board = cloneBoard(state.board);
   board[cellKey(cell)] = state.currentPlayer;
 
@@ -114,6 +156,7 @@ export function placeMark(state: GameState, cell: CellId): GameState {
     pendingUndoBoard: null,
     pendingRotation: null,
     blockedRotation: state.pendingRotation ? inverseRotation(state.pendingRotation) : null,
+    history: [...state.history, { kind: "placement", previous }],
   });
 
   if (placedState.status !== "playing") {
@@ -137,6 +180,7 @@ export function applyTurnRotation(state: GameState, rotation: LayerRotation): Ga
     rotationUsed: true,
     pendingUndoBoard: cloneBoard(state.board),
     pendingRotation: rotation,
+    history: [...state.history, { kind: "rotation", rotation, previous: snapshotState(state) }],
   };
 }
 
@@ -148,18 +192,38 @@ export function canApplyTurnRotation(state: GameState, rotation: LayerRotation):
   );
 }
 
-export function undoTurnRotation(state: GameState): GameState {
-  if (state.status !== "playing" || !state.rotationUsed || !state.pendingUndoBoard) {
+export function canUndoLastAction(state: GameState): boolean {
+  return state.history.length > 0;
+}
+
+export function getUndoRotation(state: GameState): LayerRotation | null {
+  const entry = state.history[state.history.length - 1];
+
+  if (!entry || entry.kind !== "rotation") {
+    return null;
+  }
+
+  return inverseRotation(entry.rotation);
+}
+
+export function undoLastAction(state: GameState): GameState {
+  const entry = state.history[state.history.length - 1];
+
+  if (!entry) {
     return state;
   }
 
-  return {
-    ...state,
-    board: cloneBoard(state.pendingUndoBoard),
-    rotationUsed: false,
-    pendingUndoBoard: null,
-    pendingRotation: null,
-  };
+  return restoreSnapshot(entry.previous, state.history.slice(0, -1));
+}
+
+export function undoTurnRotation(state: GameState): GameState {
+  const entry = state.history[state.history.length - 1];
+
+  if (!entry || entry.kind !== "rotation") {
+    return state;
+  }
+
+  return undoLastAction(state);
 }
 
 export function startNewGame(_state?: GameState): GameState {

@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   applyTurnRotation,
   canApplyTurnRotation,
+  canUndoLastAction,
   createGameState,
+  getUndoRotation,
   placeMark,
   startNewGame,
+  undoLastAction,
   undoTurnRotation,
 } from "./board";
 import { cellKey, createEmptyBoard, type CellKey } from "./types";
@@ -128,6 +131,7 @@ describe("game state", () => {
     expect(undone.board).not.toBe(rotated.pendingUndoBoard);
     expect(undone.rotationUsed).toBe(false);
     expect(undone.pendingUndoBoard).toBeNull();
+    expect(undone.history).toHaveLength(0);
   });
 
   it("clears undo after placement", () => {
@@ -136,7 +140,70 @@ describe("game state", () => {
     const placed = placeMark(rotated, { face: "front", row: 0, col: 0 });
 
     expect(placed.pendingUndoBoard).toBeNull();
+    expect(placed.pendingRotation).toBeNull();
     expect(placed.rotationUsed).toBe(false);
+    expect(placed.history).toHaveLength(2);
+  });
+
+  it("undoes the most recent placement and restores the current player", () => {
+    const state = placeMark(createGameState(), { face: "front", row: 0, col: 0 });
+    const undone = undoLastAction(state);
+
+    expect(undone.board[cellKey({ face: "front", row: 0, col: 0 })]).toBeNull();
+    expect(undone.currentPlayer).toBe("X");
+    expect(undone.history).toHaveLength(0);
+  });
+
+  it("undoes placement first, then the previous rotation", () => {
+    let state = createGameState();
+    state = applyTurnRotation(state, { axis: "x", layerIndex: 1, direction: 1 });
+    state = placeMark(state, { face: "front", row: 0, col: 0 });
+
+    const afterPlacementUndo = undoLastAction(state);
+
+    expect(afterPlacementUndo.board[cellKey({ face: "front", row: 0, col: 0 })]).toBeNull();
+    expect(afterPlacementUndo.rotationUsed).toBe(true);
+    expect(afterPlacementUndo.history).toHaveLength(1);
+
+    const afterRotationUndo = undoLastAction(afterPlacementUndo);
+
+    expect(afterRotationUndo.rotationUsed).toBe(false);
+    expect(afterRotationUndo.pendingRotation).toBeNull();
+    expect(afterRotationUndo.history).toHaveLength(0);
+  });
+
+  it("exposes inverse rotation only when the latest undoable action is a rotation", () => {
+    let state = createGameState();
+
+    expect(canUndoLastAction(state)).toBe(false);
+    expect(getUndoRotation(state)).toBeNull();
+
+    state = applyTurnRotation(state, { axis: "y", layerIndex: 2, direction: 1 });
+
+    expect(canUndoLastAction(state)).toBe(true);
+    expect(getUndoRotation(state)).toEqual({ axis: "y", layerIndex: 2, direction: -1 });
+
+    state = placeMark(state, { face: "front", row: 0, col: 0 });
+
+    expect(getUndoRotation(state)).toBeNull();
+  });
+
+  it("undoes a winning placement and returns to a playing state", () => {
+    let state = createGameState();
+    state = placeMark(state, { face: "front", row: 0, col: 0 });
+    state = placeMark(state, { face: "front", row: 1, col: 0 });
+    state = placeMark(state, { face: "front", row: 0, col: 1 });
+    state = placeMark(state, { face: "front", row: 1, col: 1 });
+    state = placeMark(state, { face: "front", row: 0, col: 2 });
+
+    expect(state.status).toBe("won");
+
+    const undone = undoLastAction(state);
+
+    expect(undone.status).toBe("playing");
+    expect(undone.winner).toBeNull();
+    expect(undone.currentPlayer).toBe("X");
+    expect(undone.board[cellKey({ face: "front", row: 0, col: 2 })]).toBeNull();
   });
 
   it("detects an active-face win and locks the game", () => {
