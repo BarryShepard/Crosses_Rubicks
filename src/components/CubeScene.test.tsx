@@ -3,7 +3,7 @@ import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { createGameState } from "../game/board";
-import { CubeScene } from "./CubeScene";
+import { CubeScene, createUndoRotationAnimation } from "./CubeScene";
 
 vi.mock("@react-three/fiber", () => ({
   Canvas: (props: { "data-testid"?: string }) => <div data-testid={props["data-testid"]} />,
@@ -353,6 +353,14 @@ describe("CubeScene", () => {
     );
 
     expect(html).toContain('data-animation-state="idle"');
+  });
+
+  it("uses the provided pending rotation direction for undo animation", () => {
+    const undoRotation = { axis: "x", layerIndex: 1, direction: -1 } as const;
+    const animation = createUndoRotationAnimation(undoRotation);
+
+    expect(animation.preview.rotation).toEqual(undoRotation);
+    expect(animation.targetAngle).toBeCloseTo(-Math.PI / 2);
   });
 
   it("commits a resolved rotation when pointerup happens before preview state exists", async () => {

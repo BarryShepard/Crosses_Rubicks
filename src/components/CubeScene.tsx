@@ -11,7 +11,6 @@ import {
 } from "../game/gesture";
 import {
   cellsInRotationLayer,
-  inverseLayerRotation,
   previewAngleForProgress,
   quarterTurnRadians,
   rotationToEuler,
@@ -58,6 +57,21 @@ type RotationPreviewState = {
   commitReady: boolean;
   phase: RotationAnimationPhase;
 };
+
+export function createUndoRotationAnimation(undoRotation: LayerRotation) {
+  const preview: RotationPreviewState = {
+    rotation: undoRotation,
+    angle: 0,
+    progress: 0,
+    commitReady: true,
+    phase: "undoing",
+  };
+
+  return {
+    preview,
+    targetAngle: previewAngleForProgress(undoRotation, 1),
+  };
+}
 
 function faceRotation(face: Face): [number, number, number] {
   switch (face) {
@@ -324,18 +338,11 @@ export function CubeScene({
       return;
     }
 
-    const inverse = inverseLayerRotation(pendingRotation);
-    const undoPreview: RotationPreviewState = {
-      rotation: inverse,
-      angle: 0,
-      progress: 0,
-      commitReady: true,
-      phase: "undoing",
-    };
+    const { preview: undoPreview, targetAngle } = createUndoRotationAnimation(pendingRotation);
 
     setDrag(null);
     updateRotationPreview(undoPreview);
-    animatePreviewTo("undoing", 0, previewAngleForProgress(inverse, 1), onUndoRotationComplete);
+    animatePreviewTo("undoing", 0, targetAngle, onUndoRotationComplete);
   }, [
     animatePreviewTo,
     onUndoRotationComplete,
