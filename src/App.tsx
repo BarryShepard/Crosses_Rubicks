@@ -5,15 +5,15 @@ import {
   applyTurnRotation,
   canApplyTurnRotation,
   createGameState,
+  getUndoRotation,
   placeMark,
   startNewGame,
-  undoTurnRotation,
+  undoLastAction,
 } from "./game/board";
 import type { CellId, LayerRotation } from "./game/types";
 
 export default function App() {
   const [game, setGame] = useState(() => createGameState());
-  const [rotateModeArmed, setRotateModeArmed] = useState(false);
   const [undoRequestId, setUndoRequestId] = useState(0);
   const [undoAnimating, setUndoAnimating] = useState(false);
   const [sceneAnimating, setSceneAnimating] = useState(false);
@@ -25,7 +25,6 @@ export default function App() {
     }
 
     setGame((current) => placeMark(current, cell));
-    setRotateModeArmed(false);
   }
 
   function handleLayerRotation(rotation: LayerRotation | null) {
@@ -38,7 +37,6 @@ export default function App() {
     }
 
     setGame((current) => applyTurnRotation(current, rotation));
-    setRotateModeArmed(false);
   }
 
   function handleNewGame() {
@@ -47,36 +45,28 @@ export default function App() {
     }
 
     setGame((current) => startNewGame(current));
-    setRotateModeArmed(false);
   }
 
-  function handleUndoRotation() {
+  function handleUndo() {
     if (interactionLocked) {
       return;
     }
 
-    if (!game.pendingRotation) {
-      setGame((current) => undoTurnRotation(current));
+    const undoRotation = getUndoRotation(game);
+
+    if (!undoRotation) {
+      setGame((current) => undoLastAction(current));
       return;
     }
 
     setUndoAnimating(true);
-    setRotateModeArmed(false);
     setUndoRequestId((current) => current + 1);
   }
 
   const handleUndoRotationComplete = useCallback(() => {
-    setGame((current) => undoTurnRotation(current));
+    setGame((current) => undoLastAction(current));
     setUndoAnimating(false);
   }, []);
-
-  const handleArmRotateMode = useCallback(() => {
-    if (interactionLocked) {
-      return;
-    }
-
-    setRotateModeArmed(true);
-  }, [interactionLocked]);
 
   const handleCanRotateLayer = useCallback(
     (rotation: LayerRotation) => canApplyTurnRotation(game, rotation),
@@ -88,19 +78,16 @@ export default function App() {
       <div className="game-shell">
         <GameHud
           game={game}
-          rotateModeArmed={rotateModeArmed}
           interactionLocked={interactionLocked}
-          onArmRotateMode={handleArmRotateMode}
-          onUndoRotation={handleUndoRotation}
+          onUndo={handleUndo}
           onNewGame={handleNewGame}
         />
 
         <section className="scene-panel" aria-label="Game board">
           <CubeScene
             game={game}
-            rotateModeArmed={rotateModeArmed}
             interactionLocked={interactionLocked}
-            pendingRotation={game.pendingRotation}
+            pendingRotation={getUndoRotation(game)}
             undoRequestId={undoRequestId}
             onPlaceMark={handlePlaceMark}
             onLayerRotation={handleLayerRotation}
