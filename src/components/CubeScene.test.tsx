@@ -247,7 +247,9 @@ function installDomShim() {
 
 type PointerHandlers = {
   onPointerDown: (event: unknown) => void;
+  onPointerMove: (event: unknown) => void;
   onPointerUp: (event: unknown) => void;
+  onContextMenu: (event: unknown) => void;
 };
 
 function reactPropsFor(element: TestElement): PointerHandlers {
@@ -260,12 +262,15 @@ function reactPropsFor(element: TestElement): PointerHandlers {
   return (element as unknown as Record<string, PointerHandlers>)[propsKey];
 }
 
-function pointerEvent(target: TestElement, clientX: number, clientY: number) {
+function pointerEvent(target: TestElement, clientX: number, clientY: number, button = 0, buttons = 1) {
   return {
+    button,
+    buttons,
     clientX,
     clientY,
     currentTarget: target,
     pointerId: 1,
+    preventDefault: vi.fn(),
     target,
   };
 }
@@ -275,7 +280,6 @@ describe("CubeScene", () => {
     const html = renderToStaticMarkup(
       <CubeScene
         game={createGameState()}
-        rotateModeArmed={false}
         pendingRotation={null}
         undoRequestId={0}
         onPlaceMark={vi.fn()}
@@ -290,11 +294,10 @@ describe("CubeScene", () => {
     expect(html).toContain("Place on row 3, column 3");
   });
 
-  it("marks the scene as rotation-armed and disables placement controls", () => {
+  it("does not render legacy gesture rings", () => {
     const html = renderToStaticMarkup(
       <CubeScene
         game={createGameState()}
-        rotateModeArmed
         pendingRotation={null}
         undoRequestId={0}
         onPlaceMark={vi.fn()}
@@ -303,15 +306,13 @@ describe("CubeScene", () => {
       />,
     );
 
-    expect(html).toContain("rotation-armed");
-    expect(html).toContain("disabled");
+    expect(html).not.toContain("z-gesture-rings");
   });
 
   it("exposes idle animation state for testable interaction transitions", () => {
     const html = renderToStaticMarkup(
       <CubeScene
         game={createGameState()}
-        rotateModeArmed={false}
         pendingRotation={null}
         undoRequestId={0}
         onPlaceMark={vi.fn()}
@@ -327,7 +328,6 @@ describe("CubeScene", () => {
     const html = renderToStaticMarkup(
       <CubeScene
         game={createGameState()}
-        rotateModeArmed={false}
         interactionLocked
         pendingRotation={null}
         undoRequestId={0}
@@ -344,7 +344,6 @@ describe("CubeScene", () => {
     const html = renderToStaticMarkup(
       <CubeScene
         game={createGameState()}
-        rotateModeArmed={false}
         pendingRotation={{ axis: "x", layerIndex: 1, direction: 1 }}
         undoRequestId={1}
         onPlaceMark={vi.fn()}
@@ -379,7 +378,6 @@ describe("CubeScene", () => {
         root.render(
           <CubeScene
             game={createGameState()}
-            rotateModeArmed
             pendingRotation={null}
             undoRequestId={0}
             onPlaceMark={vi.fn()}
@@ -404,7 +402,9 @@ describe("CubeScene", () => {
       };
 
       act(() => {
-        reactPropsFor(interactionLayer!).onPointerDown(pointerEvent(interactionLayer!, 100, 100));
+        reactPropsFor(interactionLayer!).onPointerDown(
+          pointerEvent(interactionLayer!, 150, 150, 2, 2),
+        );
       });
 
       const draggedInteractionLayer = container.querySelector(".cube-interaction-layer");
@@ -412,7 +412,7 @@ describe("CubeScene", () => {
 
       act(() => {
         reactPropsFor(draggedInteractionLayer!).onPointerUp(
-          pointerEvent(draggedInteractionLayer!, 180, 100),
+          pointerEvent(draggedInteractionLayer!, 230, 150, 2, 0),
         );
       });
 
@@ -425,7 +425,7 @@ describe("CubeScene", () => {
 
       expect(onLayerRotation).toHaveBeenCalledWith({
         axis: "y",
-        layerIndex: 2,
+        layerIndex: 1,
         direction: 1,
       });
     } finally {
@@ -461,7 +461,6 @@ describe("CubeScene", () => {
         root.render(
           <CubeScene
             game={createGameState()}
-            rotateModeArmed
             pendingRotation={null}
             undoRequestId={0}
             onPlaceMark={vi.fn()}
@@ -487,7 +486,9 @@ describe("CubeScene", () => {
       };
 
       act(() => {
-        reactPropsFor(interactionLayer!).onPointerDown(pointerEvent(interactionLayer!, 100, 100));
+        reactPropsFor(interactionLayer!).onPointerDown(
+          pointerEvent(interactionLayer!, 150, 150, 2, 2),
+        );
       });
 
       const draggedInteractionLayer = container.querySelector(".cube-interaction-layer");
@@ -495,7 +496,7 @@ describe("CubeScene", () => {
 
       act(() => {
         reactPropsFor(draggedInteractionLayer!).onPointerUp(
-          pointerEvent(draggedInteractionLayer!, 180, 100),
+          pointerEvent(draggedInteractionLayer!, 230, 150, 2, 0),
         );
       });
 
@@ -508,7 +509,7 @@ describe("CubeScene", () => {
 
       expect(onLayerRotation).toHaveBeenCalledWith({
         axis: "y",
-        layerIndex: 2,
+        layerIndex: 1,
         direction: 1,
       });
       const lastLockCall =
@@ -553,7 +554,6 @@ describe("CubeScene", () => {
         root.render(
           <CubeScene
             game={createGameState()}
-            rotateModeArmed
             pendingRotation={null}
             undoRequestId={0}
             canRotateLayer={() => false}
@@ -579,7 +579,9 @@ describe("CubeScene", () => {
       };
 
       act(() => {
-        reactPropsFor(interactionLayer!).onPointerDown(pointerEvent(interactionLayer!, 100, 100));
+        reactPropsFor(interactionLayer!).onPointerDown(
+          pointerEvent(interactionLayer!, 150, 150, 2, 2),
+        );
       });
 
       const draggedInteractionLayer = container.querySelector(".cube-interaction-layer");
@@ -587,7 +589,7 @@ describe("CubeScene", () => {
 
       act(() => {
         reactPropsFor(draggedInteractionLayer!).onPointerUp(
-          pointerEvent(draggedInteractionLayer!, 180, 100),
+          pointerEvent(draggedInteractionLayer!, 230, 150, 2, 0),
         );
       });
 
@@ -595,7 +597,7 @@ describe("CubeScene", () => {
       expect(onLayerRotation).toHaveBeenCalledWith(null);
       expect(onLayerRotation).not.toHaveBeenCalledWith({
         axis: "y",
-        layerIndex: 2,
+        layerIndex: 1,
         direction: 1,
       });
       expect(rafCallbacks).toHaveLength(0);
@@ -631,7 +633,6 @@ describe("CubeScene", () => {
         root.render(
           <CubeScene
             game={createGameState()}
-            rotateModeArmed={false}
             pendingRotation={{ axis: "x", layerIndex: 1, direction: 1 }}
             undoRequestId={0}
             onPlaceMark={vi.fn()}
@@ -648,7 +649,6 @@ describe("CubeScene", () => {
         root!.render(
           <CubeScene
             game={createGameState()}
-            rotateModeArmed={false}
             pendingRotation={{ axis: "x", layerIndex: 1, direction: 1 }}
             undoRequestId={1}
             onPlaceMark={vi.fn()}
@@ -666,6 +666,157 @@ describe("CubeScene", () => {
       });
 
       expect(onUndoRotationComplete).toHaveBeenCalledTimes(1);
+    } finally {
+      act(() => {
+        root?.unmount();
+      });
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not rotate from a left-button drag", async () => {
+    const document = installDomShim();
+    const { createRoot } = await import("react-dom/client");
+    const onLayerRotation = vi.fn();
+    let root: Root | null = null;
+
+    vi.stubGlobal("requestAnimationFrame", vi.fn());
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+
+    try {
+      act(() => {
+        root = createRoot(container as unknown as Element);
+        root.render(
+          <CubeScene
+            game={createGameState()}
+            pendingRotation={null}
+            undoRequestId={0}
+            onPlaceMark={vi.fn()}
+            onLayerRotation={onLayerRotation}
+            onUndoRotationComplete={vi.fn()}
+          />,
+        );
+      });
+
+      const interactionLayer = container.querySelector(".cube-interaction-layer");
+      expect(interactionLayer).not.toBeNull();
+      interactionLayer!.rect = {
+        left: 0,
+        top: 0,
+        width: 300,
+        height: 300,
+        right: 300,
+        bottom: 300,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      };
+
+      act(() => {
+        reactPropsFor(interactionLayer!).onPointerDown(pointerEvent(interactionLayer!, 150, 150));
+      });
+
+      const draggedInteractionLayer = container.querySelector(".cube-interaction-layer");
+      expect(draggedInteractionLayer).not.toBeNull();
+
+      act(() => {
+        reactPropsFor(draggedInteractionLayer!).onPointerMove(
+          pointerEvent(draggedInteractionLayer!, 230, 150),
+        );
+        reactPropsFor(draggedInteractionLayer!).onPointerUp(
+          pointerEvent(draggedInteractionLayer!, 230, 150, 0, 0),
+        );
+      });
+
+      expect(onLayerRotation).not.toHaveBeenCalled();
+    } finally {
+      act(() => {
+        root?.unmount();
+      });
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("starts right-button rotation over active face cells", async () => {
+    const document = installDomShim();
+    const { createRoot } = await import("react-dom/client");
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const onLayerRotation = vi.fn();
+    let root: Root | null = null;
+
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      rafCallbacks.push(callback);
+      return rafCallbacks.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(performance, "now").mockReturnValue(0);
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+
+    try {
+      act(() => {
+        root = createRoot(container as unknown as Element);
+        root.render(
+          <CubeScene
+            game={createGameState()}
+            pendingRotation={null}
+            undoRequestId={0}
+            onPlaceMark={vi.fn()}
+            onLayerRotation={onLayerRotation}
+            onUndoRotationComplete={vi.fn()}
+          />,
+        );
+      });
+
+      const interactionLayer = container.querySelector(".cube-interaction-layer");
+      const activeFaceCell = container.querySelector(".active-face-cell");
+      expect(interactionLayer).not.toBeNull();
+      expect(activeFaceCell).not.toBeNull();
+      interactionLayer!.rect = {
+        left: 0,
+        top: 0,
+        width: 300,
+        height: 300,
+        right: 300,
+        bottom: 300,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      };
+
+      act(() => {
+        reactPropsFor(interactionLayer!).onPointerDown({
+          ...pointerEvent(activeFaceCell!, 150, 150, 2, 2),
+          currentTarget: interactionLayer,
+        });
+      });
+
+      const draggedInteractionLayer = container.querySelector(".cube-interaction-layer");
+      expect(draggedInteractionLayer).not.toBeNull();
+
+      act(() => {
+        reactPropsFor(draggedInteractionLayer!).onPointerUp(
+          pointerEvent(draggedInteractionLayer!, 230, 150, 2, 0),
+        );
+      });
+
+      expect(rafCallbacks).toHaveLength(1);
+
+      act(() => {
+        rafCallbacks[0](200);
+      });
+
+      expect(onLayerRotation).toHaveBeenCalledWith({
+        axis: "y",
+        layerIndex: 1,
+        direction: 1,
+      });
     } finally {
       act(() => {
         root?.unmount();

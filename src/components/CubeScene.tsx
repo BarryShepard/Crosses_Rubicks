@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } 
 import { canPlaceMark, type GameState } from "../game/board";
 import { cellToSticker } from "../game/geometry";
 import {
-  resolveRotationGesture,
-  resolveRotationGesturePreview,
+  resolveLayerDrag,
+  resolveLayerDragPreview,
   type Point,
   type RotationGesturePreview,
 } from "../game/gesture";
@@ -30,7 +30,6 @@ import "./CubeScene.css";
 
 type CubeSceneProps = {
   game: GameState;
-  rotateModeArmed: boolean;
   interactionLocked?: boolean;
   pendingRotation: LayerRotation | null;
   undoRequestId: number;
@@ -41,10 +40,13 @@ type CubeSceneProps = {
   onAnimationLockChange?: (locked: boolean) => void;
 };
 
+type DragMode = "inspect" | "rotate";
+
 type DragState = {
   start: Point;
   latest: Point;
   moved: boolean;
+  mode: DragMode;
 };
 
 type RotationAnimationPhase = "dragging" | "committing" | "cancelling" | "undoing";
@@ -175,7 +177,6 @@ function CubeModel({ game, preview }: { game: GameState; preview: RotationPrevie
 
 export function CubeScene({
   game,
-  rotateModeArmed,
   interactionLocked: externalInteractionLocked = false,
   pendingRotation,
   undoRequestId,
@@ -357,18 +358,38 @@ export function CubeScene({
     return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
   }
 
+  function isRightButton(event: PointerEvent<HTMLDivElement>): boolean {
+    return event.button === 2 || (event.buttons & 2) === 2;
+  }
+
+  function isLeftButton(event: PointerEvent<HTMLDivElement>): boolean {
+    return event.button === 0 || (event.buttons & 1) === 1;
+  }
+
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     if (interactionLocked) {
       return;
     }
 
-    if (event.target instanceof HTMLElement && event.target.closest(".active-face-cell")) {
-      return;
+    const mode: DragMode = isRightButton(event) ? "rotate" : "inspect";
+
+    if (mode === "inspect") {
+      if (!isLeftButton(event)) {
+        return;
+      }
+
+      if (event.target instanceof HTMLElement && event.target.closest(".active-face-cell")) {
+        return;
+      }
+    }
+
+    if (mode === "rotate") {
+      event.preventDefault();
     }
 
     event.currentTarget.setPointerCapture(event.pointerId);
     const point = pointFromEvent(event);
-    setDrag({ start: point, latest: point, moved: false });
+    setDrag({ start: point, latest: point, moved: false, mode });
   }
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
@@ -380,11 +401,12 @@ export function CubeScene({
     const dx = latest.x - drag.start.x;
     const dy = latest.y - drag.start.y;
     const moved = drag.moved || Math.hypot(dx, dy) > 10;
-    setDrag({ start: drag.start, latest, moved });
+    setDrag({ start: drag.start, latest, moved, mode: drag.mode });
 
-    if (rotateModeArmed) {
+    if (drag.mode === "rotate") {
+      event.preventDefault();
       const bounds = boundsFromOverlay();
-      const preview = bounds ? resolveRotationGesturePreview(bounds, drag.start, latest) : null;
+      const preview = bounds ? resolveLayerDragPreview(bounds, drag.start, latest) : null;
 
       if (preview) {
         updateRotationPreview((current) => {
@@ -427,12 +449,13 @@ export function CubeScene({
     const bounds = boundsFromOverlay();
     setDrag(null);
 
-    if (!rotateModeArmed) {
+    if (drag.mode !== "rotate") {
       return;
     }
 
+    event.preventDefault();
     const preview = rotationPreviewRef.current;
-    const resolved = bounds ? resolveRotationGesture(bounds, drag.start, latest) : null;
+    const resolved = bounds ? resolveLayerDrag(bounds, drag.start, latest) : null;
 
     if (resolved) {
       if (!canRotateLayer(resolved)) {
@@ -475,7 +498,7 @@ export function CubeScene({
   }
 
   function handleCellClick(cell: CellId) {
-    if (interactionLocked || drag?.moved || rotateModeArmed || !canPlaceMark(game, cell)) {
+    if (interactionLocked || drag?.moved || !canPlaceMark(game, cell)) {
       return;
     }
 
@@ -484,9 +507,7 @@ export function CubeScene({
 
   return (
     <div
-      className={`cube-scene ${rotateModeArmed ? "rotation-armed" : ""} ${
-        interactionLocked ? "rotation-animating" : ""
-      }`}
+      className={`cube-scene ${interactionLocked ? "rotation-animating" : ""}`}
       data-animation-state={rotationPreview?.phase ?? "idle"}
     >
       <Canvas camera={{ position: [0, 0, 5.8], fov: 40 }} gl={{ preserveDrawingBuffer: true }} data-testid="cube-canvas">
@@ -503,6 +524,7 @@ export function CubeScene({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onContextMenu={(event) => event.preventDefault()}
         onPointerCancel={() => {
           setDrag(null);
 
@@ -513,11 +535,6 @@ export function CubeScene({
           }
         }}
       >
-        <div className="z-gesture-rings" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
         <div className="active-face-grid" aria-label="Active face cells">
           {rows.map((row) =>
             cols.map((col) => {
@@ -530,7 +547,7 @@ export function CubeScene({
                   type="button"
                   className="active-face-cell"
                   aria-label={`Place on row ${row + 1}, column ${col + 1}`}
-                  disabled={!canPlaceMark(game, cell) || rotateModeArmed || interactionLocked}
+                  disabled={!canPlaceMark(game, cell) || interactionLocked}
                   onClick={() => handleCellClick(cell)}
                 />
               );
