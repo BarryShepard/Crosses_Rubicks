@@ -172,6 +172,25 @@ describe("game state", () => {
     expect(afterRotationUndo.history).toHaveLength(0);
   });
 
+  it("undoes rotation first, then the previous placement", () => {
+    let state = createGameState();
+    state = placeMark(state, { face: "front", row: 0, col: 0 });
+    state = applyTurnRotation(state, { axis: "x", layerIndex: 1, direction: 1 });
+
+    const afterRotationUndo = undoLastAction(state);
+
+    expect(afterRotationUndo.board[cellKey({ face: "front", row: 0, col: 0 })]).toBe("X");
+    expect(afterRotationUndo.rotationUsed).toBe(false);
+    expect(afterRotationUndo.pendingRotation).toBeNull();
+    expect(afterRotationUndo.history).toHaveLength(1);
+
+    const afterPlacementUndo = undoLastAction(afterRotationUndo);
+
+    expect(afterPlacementUndo.board[cellKey({ face: "front", row: 0, col: 0 })]).toBeNull();
+    expect(afterPlacementUndo.currentPlayer).toBe("X");
+    expect(afterPlacementUndo.history).toHaveLength(0);
+  });
+
   it("exposes inverse rotation only when the latest undoable action is a rotation", () => {
     let state = createGameState();
 
