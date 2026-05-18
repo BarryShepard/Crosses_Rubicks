@@ -364,7 +364,7 @@ describe("CubeScene", () => {
     expect(html).not.toContain("z-gesture-rings");
   });
 
-  it("does not render the active-face wireframe or diagonal overlay", () => {
+  it("does not render black outline support geometry", () => {
     const html = renderToStaticMarkup(
       <CubeScene
         game={createGameState()}
@@ -378,7 +378,8 @@ describe("CubeScene", () => {
 
     expect(html).toContain("meshStandardMaterial");
     expect(html).not.toContain("wireframe");
-    expect(html).not.toContain("activeFaceFrameSize");
+    expect(html).not.toContain("boxGeometry");
+    expect(html).not.toContain("color=#121212");
   });
 
   it("renders the themed canvas background", () => {
@@ -426,12 +427,46 @@ describe("CubeScene", () => {
       />,
     );
 
+    expect(html).toMatch(new RegExp(`meshStandardMaterial color=#CC979F[^>]*side=${DoubleSide}`));
     expect(html).toMatch(
-      new RegExp(`meshStandardMaterial color=#F1F1F1[^>]*side=${DoubleSide}`),
+      new RegExp(
+        `meshBasicMaterial map=\\[object Object\\][^>]*color=#000000[^>]*opacity=1[^>]*side=${DoubleSide}`,
+      ),
     );
-    expect(html).toMatch(
-      new RegExp(`meshBasicMaterial map=\\[object Object\\][^>]*side=${DoubleSide}`),
+  });
+
+  it("renders zero-gap stickers with a black inner border", () => {
+    const html = renderToStaticMarkup(
+      <CubeScene
+        game={createGameState()}
+        pendingRotation={null}
+        undoRequestId={0}
+        onPlaceMark={vi.fn()}
+        onLayerRotation={vi.fn()}
+        onUndoRotationComplete={vi.fn()}
+      />,
     );
+
+    expect(html).toContain("planeGeometry args=[0.72,0.72]");
+    expect(html).toContain("name=sticker-inner-border");
+    expect(html).toContain("meshBasicMaterial color=#000000");
+  });
+
+  it("renders scene-colored face edge masks behind stickers", () => {
+    const html = renderToStaticMarkup(
+      <CubeScene
+        game={createGameState()}
+        pendingRotation={null}
+        undoRequestId={0}
+        onPlaceMark={vi.fn()}
+        onLayerRotation={vi.fn()}
+        onUndoRotationComplete={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("name=face-edge-mask");
+    expect(html).toContain("planeGeometry args=[2.34,2.34]");
+    expect(html).toContain("meshBasicMaterial color=#000000");
   });
 
   it("exposes idle animation state for testable interaction transitions", () => {

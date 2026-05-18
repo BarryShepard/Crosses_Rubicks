@@ -6,16 +6,15 @@ function decodedAssetUrl(assetUrl: string) {
 }
 
 describe("cubeTheme", () => {
-  it("uses the approved palette for seams, dark background, and cube faces", () => {
-    expect(cubeTheme.seamColor).toBe("#121212");
+  it("uses the requested palette for the dark scene and cube faces", () => {
     expect(cubeTheme.sceneBackground).toBe("#000000");
     expect(cubeTheme.faceColors).toEqual({
-      front: "#F1F1F1",
-      back: "#5E93B7",
-      right: "#D3A6AD",
-      left: "#D2C829",
-      top: "#EB2B26",
-      bottom: "#81421F",
+      front: "#CC979F",
+      back: "#0D7122",
+      right: "#5719B4",
+      left: "#6C89EF",
+      top: "#D2C829",
+      bottom: "#D42A26",
     });
   });
 
@@ -28,9 +27,21 @@ describe("cubeTheme", () => {
     expect(oMarkUrl.includes("null.svg") || /width=['"]100['"]/.test(oMarkUrl)).toBe(true);
   });
 
-  it("uses tighter sticker geometry and a 50% transparent support cube", () => {
-    expect(cubeTheme.stickerSize).toBeGreaterThan(0.62);
-    expect(cubeTheme.stickerSize).toBeLessThan(0.7);
-    expect(cubeTheme.supportCubeOpacity).toBe(0.5);
+  it("renders marks as opaque black labels", () => {
+    expect(cubeTheme.markColor).toBe("#000000");
+    expect(cubeTheme.markOpacity).toBe(1);
+  });
+
+  it("uses zero-gap sticker geometry with a 7px inner border", () => {
+    expect(cubeTheme.stickerSize).toBe(cubeTheme.stickerPositionScale);
+    expect(cubeTheme.stickerInnerBorderColor).toBe("#000000");
+    expect(cubeTheme.stickerInnerBorderWidthPx).toBe(7);
+    expect(cubeTheme.stickerInnerBorderWidth).toBeGreaterThan(0);
+  });
+
+  it("uses a scene-colored face edge mask to hide edge leaks", () => {
+    expect(cubeTheme.faceEdgeMaskColor).toBe(cubeTheme.sceneBackground);
+    expect(cubeTheme.faceEdgeMaskSize).toBeGreaterThan(cubeTheme.stickerSize * 3);
+    expect(cubeTheme.faceEdgeMaskOffset).toBeLessThan(cubeTheme.stickerNormalOffset);
   });
 });

@@ -115,8 +115,87 @@ function MarkDecal({ texture }: { texture: Texture }) {
       <planeGeometry args={[cubeTheme.markSize, cubeTheme.markSize]} />
       <meshBasicMaterial
         map={texture}
+        color={cubeTheme.markColor}
         transparent
+        opacity={cubeTheme.markOpacity}
         alphaTest={0.1}
+        depthWrite={false}
+        toneMapped={false}
+        side={DoubleSide}
+      />
+    </mesh>
+  );
+}
+
+function StickerInnerBorder() {
+  const size = cubeTheme.stickerSize;
+  const width = cubeTheme.stickerInnerBorderWidth;
+  const innerLength = size - width * 2;
+  const edgeOffset = size / 2 - width / 2;
+  const zOffset = cubeTheme.stickerInnerBorderOffset;
+  const strips: Array<{
+    key: string;
+    position: [number, number, number];
+    args: [number, number];
+  }> = [
+    {
+      key: "top",
+      position: [0, edgeOffset, zOffset],
+      args: [size, width],
+    },
+    {
+      key: "bottom",
+      position: [0, -edgeOffset, zOffset],
+      args: [size, width],
+    },
+    {
+      key: "left",
+      position: [-edgeOffset, 0, zOffset],
+      args: [width, innerLength],
+    },
+    {
+      key: "right",
+      position: [edgeOffset, 0, zOffset],
+      args: [width, innerLength],
+    },
+  ];
+
+  return (
+    <group name="sticker-inner-border">
+      {strips.map((strip) => (
+        <mesh key={strip.key} position={strip.position}>
+          <planeGeometry args={strip.args} />
+          <meshBasicMaterial
+            color={cubeTheme.stickerInnerBorderColor}
+            depthWrite={false}
+            toneMapped={false}
+            side={DoubleSide}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function FaceEdgeMask({ face }: { face: Face }) {
+  const sticker = cellToSticker({ face, row: 1, col: 1 });
+
+  return (
+    <mesh
+      name="face-edge-mask"
+      position={[
+        sticker.position.x * cubeTheme.stickerPositionScale +
+          sticker.normal.x * cubeTheme.faceEdgeMaskOffset,
+        sticker.position.y * cubeTheme.stickerPositionScale +
+          sticker.normal.y * cubeTheme.faceEdgeMaskOffset,
+        sticker.position.z * cubeTheme.stickerPositionScale +
+          sticker.normal.z * cubeTheme.faceEdgeMaskOffset,
+      ]}
+      rotation={faceRotation(face)}
+    >
+      <planeGeometry args={[cubeTheme.faceEdgeMaskSize, cubeTheme.faceEdgeMaskSize]} />
+      <meshBasicMaterial
+        color={cubeTheme.faceEdgeMaskColor}
         depthWrite={false}
         toneMapped={false}
         side={DoubleSide}
@@ -148,33 +227,16 @@ function Sticker({
         <planeGeometry args={[cubeTheme.stickerSize, cubeTheme.stickerSize]} />
         <meshStandardMaterial
           color={color}
-          emissive={previewed ? cubeTheme.seamColor : "#000000"}
+          emissive="#000000"
           emissiveIntensity={previewed ? 0.04 : 0}
           roughness={0.82}
           metalness={0.02}
           side={DoubleSide}
         />
       </mesh>
+      <StickerInnerBorder />
       {owner ? <MarkDecal texture={markTextures[owner]} /> : null}
     </group>
-  );
-}
-
-function FaceSeamBacking({ face }: { face: Face }) {
-  const normal = cellToSticker({ face, row: 1, col: 1 }).normal;
-
-  return (
-    <mesh
-      position={[
-        normal.x * cubeTheme.seamBackingOffset,
-        normal.y * cubeTheme.seamBackingOffset,
-        normal.z * cubeTheme.seamBackingOffset,
-      ]}
-      rotation={faceRotation(face)}
-    >
-      <planeGeometry args={[cubeTheme.seamBackingSize, cubeTheme.seamBackingSize]} />
-      <meshBasicMaterial color={cubeTheme.seamColor} />
-    </mesh>
   );
 }
 
@@ -203,25 +265,8 @@ function CubeModel({ game, preview }: { game: GameState; preview: RotationPrevie
 
   return (
     <group>
-      <mesh>
-        <boxGeometry
-          args={[
-            cubeTheme.supportCubeSize,
-            cubeTheme.supportCubeSize,
-            cubeTheme.supportCubeSize,
-          ]}
-        />
-        <meshStandardMaterial
-          color={cubeTheme.seamColor}
-          transparent
-          opacity={cubeTheme.supportCubeOpacity}
-          depthWrite={false}
-          roughness={0.9}
-          metalness={0.02}
-        />
-      </mesh>
       {(["front", "back", "right", "left", "top", "bottom"] as Face[]).map((face) => (
-        <FaceSeamBacking key={face} face={face} />
+        <FaceEdgeMask key={face} face={face} />
       ))}
       {staticCells.map((cell) => {
         const key = cellKey(cell);
