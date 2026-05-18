@@ -2,8 +2,9 @@ import { act } from "react";
 import type { ReactNode } from "react";
 import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
+import { DoubleSide } from "three";
 import { describe, expect, it, vi } from "vitest";
-import { createGameState } from "../game/board";
+import { createGameState, placeMark } from "../game/board";
 import { CubeScene, createUndoRotationAnimation } from "./CubeScene";
 
 vi.mock("@react-three/fiber", () => ({
@@ -410,6 +411,27 @@ describe("CubeScene", () => {
 
     expect(html).toContain("meshStandardMaterial");
     expect(html).not.toContain("#DCE8F4");
+  });
+
+  it("renders stickers and marks double-sided so rotating planes stay visible", () => {
+    const game = placeMark(createGameState(), { face: "front", row: 0, col: 0 });
+    const html = renderToStaticMarkup(
+      <CubeScene
+        game={game}
+        pendingRotation={null}
+        undoRequestId={0}
+        onPlaceMark={vi.fn()}
+        onLayerRotation={vi.fn()}
+        onUndoRotationComplete={vi.fn()}
+      />,
+    );
+
+    expect(html).toMatch(
+      new RegExp(`meshStandardMaterial color=#F1F1F1[^>]*side=${DoubleSide}`),
+    );
+    expect(html).toMatch(
+      new RegExp(`meshBasicMaterial map=\\[object Object\\][^>]*side=${DoubleSide}`),
+    );
   });
 
   it("exposes idle animation state for testable interaction transitions", () => {

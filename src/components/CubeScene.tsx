@@ -1,7 +1,7 @@
 import { useTexture } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
-import type { Texture } from "three";
+import { DoubleSide, type Texture } from "three";
 import { canPlaceMark, type GameState } from "../game/board";
 import { cellToSticker } from "../game/geometry";
 import {
@@ -119,6 +119,7 @@ function MarkDecal({ texture }: { texture: Texture }) {
         alphaTest={0.1}
         depthWrite={false}
         toneMapped={false}
+        side={DoubleSide}
       />
     </mesh>
   );
@@ -151,6 +152,7 @@ function Sticker({
           emissiveIntensity={previewed ? 0.04 : 0}
           roughness={0.82}
           metalness={0.02}
+          side={DoubleSide}
         />
       </mesh>
       {owner ? <MarkDecal texture={markTextures[owner]} /> : null}
