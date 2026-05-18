@@ -4,7 +4,7 @@ import type { Face, Player } from "../game/types";
 
 export const cubeTheme = {
   seamColor: "#121212",
-  sceneBackground: "#817D7E",
+  sceneBackground: "#000000",
   faceColors: {
     front: "#F1F1F1",
     back: "#5E93B7",
@@ -25,6 +25,5 @@ export const cubeTheme = {
   seamBackingSize: 2.18,
   seamBackingOffset: 1.044,
   supportCubeSize: 2.04,
-  supportCubeOpacity: 0.08,
-  activeFaceFrameSize: 2.2,
+  supportCubeOpacity: 0.5,
 } as const;

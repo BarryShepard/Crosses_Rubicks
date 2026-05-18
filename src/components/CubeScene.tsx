@@ -26,6 +26,10 @@ import {
   type Face,
   type LayerRotation,
 } from "../game/types";
+import {
+  stickerFacesAfterHistory,
+  type StickerFaceMap,
+} from "../game/stickerFaces";
 import "./CubeScene.css";
 import { cubeTheme } from "./cubeTheme";
 
@@ -122,22 +126,20 @@ function MarkDecal({ texture }: { texture: Texture }) {
 
 function Sticker({
   cell,
+  sourceFace,
   owner,
   highlighted,
   previewed = false,
   markTextures,
 }: {
   cell: CellId;
+  sourceFace: Face;
   owner: "X" | "O" | null;
   highlighted: boolean;
   previewed?: boolean;
   markTextures: Record<"X" | "O", Texture>;
 }) {
-  const color = highlighted
-    ? "#FFE36E"
-    : previewed
-      ? "#DCE8F4"
-      : cubeTheme.faceColors[cell.face];
+  const color = highlighted ? "#FFE36E" : cubeTheme.faceColors[sourceFace];
 
   return (
     <group position={stickerPosition(cell)} rotation={faceRotation(cell.face)}>
@@ -191,6 +193,11 @@ function CubeModel({ game, preview }: { game: GameState; preview: RotationPrevie
   );
   const staticCells = preview ? cells.filter((cell) => !previewKeys.has(cellKey(cell))) : cells;
   const previewCells = preview ? cells.filter((cell) => previewKeys.has(cellKey(cell))) : [];
+  const stickerFaces = useMemo(() => stickerFacesAfterHistory(game.history), [game.history]);
+
+  function sourceFaceFor(cell: CellId, stickerFaceMap: StickerFaceMap): Face {
+    return stickerFaceMap[cellKey(cell)];
+  }
 
   return (
     <group>
@@ -221,6 +228,7 @@ function CubeModel({ game, preview }: { game: GameState; preview: RotationPrevie
           <Sticker
             key={key}
             cell={cell}
+            sourceFace={sourceFaceFor(cell, stickerFaces)}
             owner={game.board[key]}
             highlighted={highlighted.has(key)}
             markTextures={markTextures}
@@ -236,6 +244,7 @@ function CubeModel({ game, preview }: { game: GameState; preview: RotationPrevie
               <Sticker
                 key={key}
                 cell={cell}
+                sourceFace={sourceFaceFor(cell, stickerFaces)}
                 owner={game.board[key]}
                 highlighted={highlighted.has(key)}
                 previewed
@@ -245,10 +254,6 @@ function CubeModel({ game, preview }: { game: GameState; preview: RotationPrevie
           })}
         </group>
       ) : null}
-      <mesh position={[0, 0, 1.075]}>
-        <planeGeometry args={[cubeTheme.activeFaceFrameSize, cubeTheme.activeFaceFrameSize]} />
-        <meshBasicMaterial color={cubeTheme.seamColor} wireframe transparent opacity={0.5} />
-      </mesh>
     </group>
   );
 }
@@ -582,6 +587,7 @@ export function CubeScene({
       data-animation-state={rotationPreview?.phase ?? "idle"}
     >
       <Canvas camera={{ position: [0, 0, 5.8], fov: 40 }} gl={{ preserveDrawingBuffer: true }} data-testid="cube-canvas">
+        <color attach="background" args={[cubeTheme.sceneBackground]} />
         <ambientLight intensity={1.1} />
         <directionalLight position={[3, 4, 5]} intensity={1.4} />
         <group rotation={[viewRotation[0], viewRotation[1], 0]}>

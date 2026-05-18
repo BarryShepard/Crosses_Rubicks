@@ -1,4 +1,5 @@
 import { act } from "react";
+import type { ReactNode } from "react";
 import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -6,7 +7,60 @@ import { createGameState } from "../game/board";
 import { CubeScene, createUndoRotationAnimation } from "./CubeScene";
 
 vi.mock("@react-three/fiber", () => ({
-  Canvas: (props: { "data-testid"?: string }) => <div data-testid={props["data-testid"]} />,
+  Canvas: (props: { "data-testid"?: string; children?: ReactNode }) => {
+    function formatValue(value: unknown): string {
+      if (Array.isArray(value)) {
+        return `[${value.map(formatValue).join(",")}]`;
+      }
+
+      if (value === null || value === undefined) {
+        return "";
+      }
+
+      return String(value);
+    }
+
+    function serializeNode(node: ReactNode): string {
+      if (node === null || node === undefined || typeof node === "boolean") {
+        return "";
+      }
+
+      if (Array.isArray(node)) {
+        return node.map(serializeNode).join("");
+      }
+
+      if (typeof node === "string" || typeof node === "number") {
+        return String(node);
+      }
+
+      if (typeof node === "object" && "type" in node && "props" in node) {
+        const element = node as {
+          type: unknown;
+          props: Record<string, unknown> & { children?: ReactNode };
+        };
+
+        if (typeof element.type === "function") {
+          const Component = element.type as (props: typeof element.props) => ReactNode;
+
+          return serializeNode(Component(element.props));
+        }
+
+        const typeName = typeof element.type === "string" ? element.type : "Element";
+        const attrs = Object.entries(element.props)
+          .filter(([key]) => key !== "children")
+          .map(([key, value]) => `${key}=${formatValue(value)}`)
+          .join(" ");
+
+        return `<${typeName}${attrs ? ` ${attrs}` : ""}>${serializeNode(
+          element.props.children,
+        )}</${typeName}>`;
+      }
+
+      return "";
+    }
+
+    return <div data-testid={props["data-testid"]}>{serializeNode(props.children)}</div>;
+  },
 }));
 
 vi.mock("@react-three/drei", () => ({
@@ -307,6 +361,55 @@ describe("CubeScene", () => {
     );
 
     expect(html).not.toContain("z-gesture-rings");
+  });
+
+  it("does not render the active-face wireframe or diagonal overlay", () => {
+    const html = renderToStaticMarkup(
+      <CubeScene
+        game={createGameState()}
+        pendingRotation={null}
+        undoRequestId={0}
+        onPlaceMark={vi.fn()}
+        onLayerRotation={vi.fn()}
+        onUndoRotationComplete={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("meshStandardMaterial");
+    expect(html).not.toContain("wireframe");
+    expect(html).not.toContain("activeFaceFrameSize");
+  });
+
+  it("renders the themed canvas background", () => {
+    const html = renderToStaticMarkup(
+      <CubeScene
+        game={createGameState()}
+        pendingRotation={null}
+        undoRequestId={0}
+        onPlaceMark={vi.fn()}
+        onLayerRotation={vi.fn()}
+        onUndoRotationComplete={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("attach=background");
+    expect(html).toContain("#000000");
+  });
+
+  it("does not render the old fixed preview sticker color", () => {
+    const html = renderToStaticMarkup(
+      <CubeScene
+        game={createGameState()}
+        pendingRotation={null}
+        undoRequestId={0}
+        onPlaceMark={vi.fn()}
+        onLayerRotation={vi.fn()}
+        onUndoRotationComplete={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("meshStandardMaterial");
+    expect(html).not.toContain("#DCE8F4");
   });
 
   it("exposes idle animation state for testable interaction transitions", () => {

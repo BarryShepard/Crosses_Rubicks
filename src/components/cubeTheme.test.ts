@@ -6,9 +6,9 @@ function decodedAssetUrl(assetUrl: string) {
 }
 
 describe("cubeTheme", () => {
-  it("uses the approved palette for seams, background, and cube faces", () => {
+  it("uses the approved palette for seams, dark background, and cube faces", () => {
     expect(cubeTheme.seamColor).toBe("#121212");
-    expect(cubeTheme.sceneBackground).toBe("#817D7E");
+    expect(cubeTheme.sceneBackground).toBe("#000000");
     expect(cubeTheme.faceColors).toEqual({
       front: "#F1F1F1",
       back: "#5E93B7",
@@ -28,9 +28,9 @@ describe("cubeTheme", () => {
     expect(oMarkUrl.includes("null.svg") || /width=['"]100['"]/.test(oMarkUrl)).toBe(true);
   });
 
-  it("uses tighter sticker geometry and a transparent support cube", () => {
+  it("uses tighter sticker geometry and a 50% transparent support cube", () => {
     expect(cubeTheme.stickerSize).toBeGreaterThan(0.62);
     expect(cubeTheme.stickerSize).toBeLessThan(0.7);
-    expect(cubeTheme.supportCubeOpacity).toBeLessThan(0.2);
+    expect(cubeTheme.supportCubeOpacity).toBe(0.5);
   });
 });
