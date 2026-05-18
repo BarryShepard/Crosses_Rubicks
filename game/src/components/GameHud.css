@@ -63,6 +63,13 @@
   background: #202020;
 }
 
+.hud-actions button.is-active,
+.hud-actions button[aria-pressed="true"] {
+  border-color: #d3a6ad;
+  background: #2a171b;
+  color: #ffffff;
+}
+
 .hud-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.45;

@@ -17,6 +17,8 @@ describe("App", () => {
     expect(html).toContain("game-shell");
     expect(html).toContain("Right-drag to rotate or place X");
     expect(html).toContain("Undo");
+    expect(html).toContain("Rules");
+    expect(html).toContain("Music");
     expect(html).not.toContain("Rotate layer");
     expect(html).not.toContain("Undo rotation");
     expect(html).toContain("Active face cells");

@@ -6,6 +6,9 @@ type GameHudProps = {
   interactionLocked: boolean;
   onUndo: () => void;
   onNewGame: () => void;
+  onOpenRules: () => void;
+  musicEnabled: boolean;
+  onToggleMusic: () => void;
 };
 
 function statusText(game: GameState): string {
@@ -29,6 +32,9 @@ export function GameHud({
   interactionLocked,
   onUndo,
   onNewGame,
+  onOpenRules,
+  musicEnabled,
+  onToggleMusic,
 }: GameHudProps) {
   const undoDisabled = interactionLocked || !canUndoLastAction(game);
   const newGameDisabled = interactionLocked;
@@ -47,6 +53,17 @@ export function GameHud({
       </p>
 
       <div className="hud-actions">
+        <button type="button" onClick={onOpenRules}>
+          Rules
+        </button>
+        <button
+          type="button"
+          className={musicEnabled ? "is-active" : undefined}
+          aria-pressed={musicEnabled}
+          onClick={onToggleMusic}
+        >
+          Music
+        </button>
         <button type="button" onClick={onUndo} disabled={undoDisabled}>
           Undo
         </button>

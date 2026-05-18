@@ -19,6 +19,9 @@ describe("GameHud", () => {
         interactionLocked={false}
         onUndo={vi.fn()}
         onNewGame={vi.fn()}
+        onOpenRules={vi.fn()}
+        musicEnabled={false}
+        onToggleMusic={vi.fn()}
       />,
     );
 
@@ -29,6 +32,9 @@ describe("GameHud", () => {
     expect(html).not.toContain("Undo rotation");
     expect(undoButtonMarkup(html)).toContain("disabled");
     expect(html).toContain("New game");
+    expect(html).toContain("Rules");
+    expect(html).toContain("Music");
+    expect(html).toContain('aria-pressed="false"');
   });
 
   it("shows placement status after a rotation has been used", () => {
@@ -44,6 +50,9 @@ describe("GameHud", () => {
         interactionLocked={false}
         onUndo={vi.fn()}
         onNewGame={vi.fn()}
+        onOpenRules={vi.fn()}
+        musicEnabled={false}
+        onToggleMusic={vi.fn()}
       />,
     );
 
@@ -59,16 +68,28 @@ describe("GameHud", () => {
         interactionLocked
         onUndo={vi.fn()}
         onNewGame={vi.fn()}
+        onOpenRules={vi.fn()}
+        musicEnabled
+        onToggleMusic={vi.fn()}
       />,
     );
 
     expect(html.match(/disabled=""/g)).toHaveLength(2);
+    expect(html).toContain('aria-pressed="true"');
   });
 
   it("enables Undo after a placement", () => {
     const game = placeMark(createGameState(), { face: "front", row: 0, col: 0 });
     const html = renderToStaticMarkup(
-      <GameHud game={game} interactionLocked={false} onUndo={vi.fn()} onNewGame={vi.fn()} />,
+      <GameHud
+        game={game}
+        interactionLocked={false}
+        onUndo={vi.fn()}
+        onNewGame={vi.fn()}
+        onOpenRules={vi.fn()}
+        musicEnabled={false}
+        onToggleMusic={vi.fn()}
+      />,
     );
 
     expect(html).toContain("Undo");
