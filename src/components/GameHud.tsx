@@ -1,15 +1,17 @@
-import type { GameState } from "../game/board";
+import { canUndoLastAction, type GameState } from "../game/board";
 import "./GameHud.css";
 
 type GameHudProps = {
   game: GameState;
-  rotateModeArmed: boolean;
-  onArmRotateMode: () => void;
-  onUndoRotation: () => void;
+  interactionLocked: boolean;
+  onUndo: () => void;
   onNewGame: () => void;
+  onOpenRules: () => void;
+  musicEnabled: boolean;
+  onToggleMusic: () => void;
 };
 
-function statusText(game: GameState, rotateModeArmed: boolean): string {
+function statusText(game: GameState): string {
   if (game.status === "won" && game.winner) {
     return `${game.winner} wins`;
   }
@@ -18,26 +20,24 @@ function statusText(game: GameState, rotateModeArmed: boolean): string {
     return "Draw";
   }
 
-  if (rotateModeArmed) {
-    return "Drag a layer to rotate";
-  }
-
   if (game.rotationUsed) {
     return `Place ${game.currentPlayer}`;
   }
 
-  return `Rotate a layer or place ${game.currentPlayer}`;
+  return `Right-drag to rotate or place ${game.currentPlayer}`;
 }
 
 export function GameHud({
   game,
-  rotateModeArmed,
-  onArmRotateMode,
-  onUndoRotation,
+  interactionLocked,
+  onUndo,
   onNewGame,
+  onOpenRules,
+  musicEnabled,
+  onToggleMusic,
 }: GameHudProps) {
-  const rotationDisabled = game.status !== "playing" || game.rotationUsed || rotateModeArmed;
-  const undoDisabled = game.status !== "playing" || !game.rotationUsed;
+  const undoDisabled = interactionLocked || !canUndoLastAction(game);
+  const newGameDisabled = interactionLocked;
 
   return (
     <header className="game-hud">
@@ -49,17 +49,25 @@ export function GameHud({
       </div>
 
       <p className="status-text" role="status">
-        {statusText(game, rotateModeArmed)}
+        {statusText(game)}
       </p>
 
       <div className="hud-actions">
-        <button type="button" onClick={onArmRotateMode} disabled={rotationDisabled}>
-          Rotate layer
+        <button type="button" onClick={onOpenRules}>
+          Rules
         </button>
-        <button type="button" onClick={onUndoRotation} disabled={undoDisabled}>
-          Undo rotation
+        <button
+          type="button"
+          className={musicEnabled ? "is-active" : undefined}
+          aria-pressed={musicEnabled}
+          onClick={onToggleMusic}
+        >
+          Music
         </button>
-        <button type="button" onClick={onNewGame}>
+        <button type="button" onClick={onUndo} disabled={undoDisabled}>
+          Undo
+        </button>
+        <button type="button" onClick={onNewGame} disabled={newGameDisabled}>
           New game
         </button>
       </div>

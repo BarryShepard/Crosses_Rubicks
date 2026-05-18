@@ -1,25 +1,40 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { GameHud } from "./GameHud";
-import { applyTurnRotation, createGameState } from "../game/board";
+import { applyTurnRotation, createGameState, placeMark } from "../game/board";
+
+function undoButtonMarkup(html: string): string {
+  const match = html.match(/<button[^>]*>Undo<\/button>/);
+
+  expect(match).not.toBeNull();
+
+  return match![0];
+}
 
 describe("GameHud", () => {
   it("renders current player, status, and primary controls", () => {
     const html = renderToStaticMarkup(
       <GameHud
         game={createGameState()}
-        rotateModeArmed={false}
-        onArmRotateMode={vi.fn()}
-        onUndoRotation={vi.fn()}
+        interactionLocked={false}
+        onUndo={vi.fn()}
         onNewGame={vi.fn()}
+        onOpenRules={vi.fn()}
+        musicEnabled={false}
+        onToggleMusic={vi.fn()}
       />,
     );
 
     expect(html).toContain("Current player");
-    expect(html).toContain("Rotate a layer or place X");
-    expect(html).toContain("Rotate layer");
-    expect(html).toContain("Undo rotation");
+    expect(html).toContain("Right-drag to rotate or place X");
+    expect(html).not.toContain("Rotate layer");
+    expect(html).toContain("Undo");
+    expect(html).not.toContain("Undo rotation");
+    expect(undoButtonMarkup(html)).toContain("disabled");
     expect(html).toContain("New game");
+    expect(html).toContain("Rules");
+    expect(html).toContain("Music");
+    expect(html).toContain('aria-pressed="false"');
   });
 
   it("shows placement status after a rotation has been used", () => {
@@ -32,14 +47,53 @@ describe("GameHud", () => {
     const html = renderToStaticMarkup(
       <GameHud
         game={game}
-        rotateModeArmed={false}
-        onArmRotateMode={vi.fn()}
-        onUndoRotation={vi.fn()}
+        interactionLocked={false}
+        onUndo={vi.fn()}
         onNewGame={vi.fn()}
+        onOpenRules={vi.fn()}
+        musicEnabled={false}
+        onToggleMusic={vi.fn()}
       />,
     );
 
     expect(html).toContain("Place X");
-    expect(html).toContain("disabled");
+    expect(html).toContain("Undo");
+    expect(html).not.toContain("Undo rotation");
+  });
+
+  it("disables all controls when interactions are locked", () => {
+    const html = renderToStaticMarkup(
+      <GameHud
+        game={createGameState()}
+        interactionLocked
+        onUndo={vi.fn()}
+        onNewGame={vi.fn()}
+        onOpenRules={vi.fn()}
+        musicEnabled
+        onToggleMusic={vi.fn()}
+      />,
+    );
+
+    expect(html.match(/disabled=""/g)).toHaveLength(2);
+    expect(html).toContain('aria-pressed="true"');
+  });
+
+  it("enables Undo after a placement", () => {
+    const game = placeMark(createGameState(), { face: "front", row: 0, col: 0 });
+    const html = renderToStaticMarkup(
+      <GameHud
+        game={game}
+        interactionLocked={false}
+        onUndo={vi.fn()}
+        onNewGame={vi.fn()}
+        onOpenRules={vi.fn()}
+        musicEnabled={false}
+        onToggleMusic={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("Undo");
+    expect(html).not.toContain("Undo rotation");
+    expect(undoButtonMarkup(html)).not.toContain("disabled");
   });
 });

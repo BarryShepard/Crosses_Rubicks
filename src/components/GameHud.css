@@ -4,9 +4,10 @@
   gap: 16px;
   align-items: center;
   padding: 14px 16px;
-  border: 1px solid #cfd7e6;
+  border: 1px solid #2a2a2a;
   border-radius: 8px;
-  background: #ffffff;
+  background: #0d0d0d;
+  color: #f1f1f1;
 }
 
 .turn-block {
@@ -15,7 +16,7 @@
 }
 
 .eyebrow {
-  color: #607089;
+  color: #9b9b9b;
   font-size: 12px;
   text-transform: uppercase;
 }
@@ -26,16 +27,16 @@
 }
 
 .player-x {
-  color: #172033;
+  color: #f1f1f1;
 }
 
 .player-o {
-  color: #d23b4b;
+  color: #d3a6ad;
 }
 
 .status-text {
   margin: 0;
-  color: #283449;
+  color: #f1f1f1;
   font-weight: 700;
   text-align: center;
 }
@@ -49,12 +50,24 @@
 
 .hud-actions button {
   min-height: 38px;
-  border: 1px solid #b8c4d8;
+  border: 1px solid #3a3a3a;
   border-radius: 7px;
-  background: #ffffff;
-  color: #172033;
+  background: #181818;
+  color: #f1f1f1;
   cursor: pointer;
   padding: 0 12px;
+}
+
+.hud-actions button:hover:not(:disabled) {
+  border-color: #5e93b7;
+  background: #202020;
+}
+
+.hud-actions button.is-active,
+.hud-actions button[aria-pressed="true"] {
+  border-color: #d3a6ad;
+  background: #2a171b;
+  color: #ffffff;
 }
 
 .hud-actions button:disabled {
