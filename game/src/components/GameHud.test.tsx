@@ -26,7 +26,7 @@ describe("GameHud", () => {
     );
 
     expect(html).toContain("Current player");
-    expect(html).toContain("Right-drag to rotate or place X");
+    expect(html).toContain("Swipe/right-drag to rotate or place X");
     expect(html).not.toContain("Rotate layer");
     expect(html).toContain("Undo");
     expect(html).not.toContain("Undo rotation");

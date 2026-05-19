@@ -489,19 +489,30 @@ export function CubeScene({
     return event.button === 0 || (event.buttons & 1) === 1;
   }
 
+  function isTouchPointer(event: PointerEvent<HTMLDivElement>): boolean {
+    return event.pointerType === "touch" || event.pointerType === "pen";
+  }
+
+  function startedOnActiveFaceCell(event: PointerEvent<HTMLDivElement>): boolean {
+    return event.target instanceof HTMLElement && Boolean(event.target.closest(".active-face-cell"));
+  }
+
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     if (interactionLocked) {
       return;
     }
 
-    const mode: DragMode = isRightButton(event) ? "rotate" : "inspect";
+    const mode: DragMode =
+      isRightButton(event) || (isTouchPointer(event) && startedOnActiveFaceCell(event))
+        ? "rotate"
+        : "inspect";
 
     if (mode === "inspect") {
       if (!isLeftButton(event)) {
         return;
       }
 
-      if (event.target instanceof HTMLElement && event.target.closest(".active-face-cell")) {
+      if (startedOnActiveFaceCell(event)) {
         return;
       }
     }

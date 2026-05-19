@@ -44,22 +44,22 @@ test("renders a non-empty cube canvas", async ({ page }) => {
 test("allows placing a mark and starting a new game", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("status")).toContainText("Right-drag to rotate or place X");
+  await expect(page.getByRole("status")).toContainText("Swipe/right-drag to rotate or place X");
   await page.getByLabel("Place on row 1, column 1").click();
-  await expect(page.getByRole("status")).toContainText("Right-drag to rotate or place O");
+  await expect(page.getByRole("status")).toContainText("Swipe/right-drag to rotate or place O");
 
   await page.getByRole("button", { name: "New game" }).click();
-  await expect(page.getByRole("status")).toContainText("Right-drag to rotate or place X");
+  await expect(page.getByRole("status")).toContainText("Swipe/right-drag to rotate or place X");
 });
 
 test("uses Undo for a placed mark", async ({ page }) => {
   await page.goto("/");
 
   await page.getByLabel("Place on row 1, column 1").click();
-  await expect(page.getByRole("status")).toContainText("Right-drag to rotate or place O");
+  await expect(page.getByRole("status")).toContainText("Swipe/right-drag to rotate or place O");
 
   await page.getByRole("button", { name: "Undo" }).click();
-  await expect(page.getByRole("status")).toContainText("Right-drag to rotate or place X");
+  await expect(page.getByRole("status")).toContainText("Swipe/right-drag to rotate or place X");
 });
 
 test("right-dragging the cube performs a layer rotation and enables Undo", async ({ page }) => {

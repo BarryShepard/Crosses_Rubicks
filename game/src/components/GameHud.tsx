@@ -24,7 +24,7 @@ function statusText(game: GameState): string {
     return `Place ${game.currentPlayer}`;
   }
 
-  return `Right-drag to rotate or place ${game.currentPlayer}`;
+  return `Swipe/right-drag to rotate or place ${game.currentPlayer}`;
 }
 
 export function GameHud({

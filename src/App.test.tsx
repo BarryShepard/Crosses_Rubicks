@@ -15,7 +15,7 @@ describe("App", () => {
     const html = renderToStaticMarkup(<App />);
 
     expect(html).toContain("game-shell");
-    expect(html).toContain("Right-drag to rotate or place X");
+    expect(html).toContain("Swipe/right-drag to rotate or place X");
     expect(html).toContain("Undo");
     expect(html).toContain("Rules");
     expect(html).toContain("Music");

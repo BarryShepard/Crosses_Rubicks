@@ -317,7 +317,14 @@ function reactPropsFor(element: TestElement): PointerHandlers {
   return (element as unknown as Record<string, PointerHandlers>)[propsKey];
 }
 
-function pointerEvent(target: TestElement, clientX: number, clientY: number, button = 0, buttons = 1) {
+function pointerEvent(
+  target: TestElement,
+  clientX: number,
+  clientY: number,
+  button = 0,
+  buttons = 1,
+  pointerType = "mouse",
+) {
   return {
     button,
     buttons,
@@ -325,6 +332,7 @@ function pointerEvent(target: TestElement, clientX: number, clientY: number, but
     clientY,
     currentTarget: target,
     pointerId: 1,
+    pointerType,
     preventDefault: vi.fn(),
     target,
   };
@@ -971,6 +979,90 @@ describe("CubeScene", () => {
       act(() => {
         reactPropsFor(draggedInteractionLayer!).onPointerUp(
           pointerEvent(draggedInteractionLayer!, 230, 150, 2, 0),
+        );
+      });
+
+      expect(rafCallbacks).toHaveLength(1);
+
+      act(() => {
+        rafCallbacks[0](200);
+      });
+
+      expect(onLayerRotation).toHaveBeenCalledWith({
+        axis: "y",
+        layerIndex: 1,
+        direction: 1,
+      });
+    } finally {
+      act(() => {
+        root?.unmount();
+      });
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("starts touch rotation from a swipe over active face cells", async () => {
+    const document = installDomShim();
+    const { createRoot } = await import("react-dom/client");
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const onLayerRotation = vi.fn();
+    let root: Root | null = null;
+
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      rafCallbacks.push(callback);
+      return rafCallbacks.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(performance, "now").mockReturnValue(0);
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+
+    try {
+      act(() => {
+        root = createRoot(container as unknown as Element);
+        root.render(
+          <CubeScene
+            game={createGameState()}
+            pendingRotation={null}
+            undoRequestId={0}
+            onPlaceMark={vi.fn()}
+            onLayerRotation={onLayerRotation}
+            onUndoRotationComplete={vi.fn()}
+          />,
+        );
+      });
+
+      const interactionLayer = container.querySelector(".cube-interaction-layer");
+      const activeFaceCell = container.querySelector(".active-face-cell");
+      expect(interactionLayer).not.toBeNull();
+      expect(activeFaceCell).not.toBeNull();
+      interactionLayer!.rect = {
+        left: 0,
+        top: 0,
+        width: 300,
+        height: 300,
+        right: 300,
+        bottom: 300,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      };
+
+      act(() => {
+        reactPropsFor(interactionLayer!).onPointerDown({
+          ...pointerEvent(activeFaceCell!, 150, 150, 0, 1, "touch"),
+          currentTarget: interactionLayer,
+        });
+      });
+
+      const draggedInteractionLayer = container.querySelector(".cube-interaction-layer");
+      expect(draggedInteractionLayer).not.toBeNull();
+
+      act(() => {
+        reactPropsFor(draggedInteractionLayer!).onPointerUp(
+          pointerEvent(draggedInteractionLayer!, 230, 150, 0, 0, "touch"),
         );
       });
 
